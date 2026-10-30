@@ -1,0 +1,41 @@
+{
+  "stand": "fertig",
+  "validierung_balanciert": 0.606789266724903,
+  "test": {
+    "genauigkeit": 0.7893052155902843,
+    "top3": 0.9557522123893806,
+    "balanciert": 0.5728788525404299,
+    "pro_klasse": {
+      "basaliom": 0.8743016759776536,
+      "seb_keratose": 0.7100840336134454,
+      "naevus": 0.8809099018733274,
+      "melanom": 0.7764976958525346,
+      "aktinische_keratose": 0.6075949367088608,
+      "plattenepithel": 0.5738636363636364,
+      "dermatofibrom": 0.7090909090909091,
+      "gefaess": 0.8928571428571429,
+      "impetigo": 0.14285714285714285,
+      "ekzem": 0.5338983050847458,
+      "pityriasis_versicolor": 0.5,
+      "herpes_simplex": 0.1,
+      "kontaktekzem": 0.375,
+      "herpes_zoster": 0.07142857142857142,
+      "urtikaria": 0.6578947368421053,
+      "insektenstich": 0.32558139534883723,
+      "follikulitis": 0.6666666666666666,
+      "psoriasis": 0.5555555555555556,
+      "akne": 0.5217391304347826,
+      "pityriasis_rosea": 0.6842105263157895,
+      "tinea": 0.1,
+      "seb_dermatitis": 0.5833333333333334,
+      "lichen_planus": 0.8717948717948718,
+      "skabies": 0.8421052631578947,
+      "lupus": 0.7647058823529411
+    },
+    "pro_quelle": {
+      "isic": 0.8223655913978495,
+      "scin": 0.40625,
+      "fitz": 0.8122448979591836
+    }
+  }
+}

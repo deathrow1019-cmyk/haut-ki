@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Haut-KI</title>
+  <meta name="description" content="Erkennt Hautveränderungen auf Fotos – direkt auf dem iPhone, offline. Lernprojekt, keine Diagnose.">
+  <meta name="theme-color" content="#f6f3ef" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16181b" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Haut-KI">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Haut-KI</h1>
+      <p class="sub">Foto einer Hautstelle – die Auswertung passiert nur auf diesem Gerät.</p>
+    </header>
+
+    <section id="laden" class="card" hidden>
+      <p id="laden-text">Modell wird vorbereitet …</p>
+      <div class="bar"><div id="laden-balken"></div></div>
+      <p class="hint">Nur beim ersten Start (ca. 50 MB). Danach funktioniert die App auch offline.</p>
+    </section>
+
+    <section class="card" id="eingabe">
+      <label class="pick" id="pick">
+        <input id="datei" type="file" accept="image/*">
+        <span class="pick-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="28" height="28"><path fill="currentColor" d="M9 3 7.2 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9Zm3 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>
+        </span>
+        <span class="pick-text">
+          <strong id="pick-titel">Foto aufnehmen oder auswählen</strong>
+          <span>Scharf, gut beleuchtet, die Stelle in der Mitte</span>
+        </span>
+      </label>
+      <figure id="vorschau" hidden>
+        <img id="vorschau-bild" alt="Ausgewähltes Foto">
+        <div class="crop-hint" aria-hidden="true"></div>
+      </figure>
+    </section>
+
+    <section id="ergebnis" class="card" hidden aria-live="polite">
+      <div id="ampel" class="ampel"></div>
+      <h2 id="top-name"></h2>
+      <p id="top-prozent" class="big"></p>
+      <p id="hinweis"></p>
+      <p id="unsicher" class="warn" hidden>⚠️ <strong>Das Modell ist sich unsicher.</strong> Mehrere Möglichkeiten liegen nah beieinander, oder das Bild zeigt etwas, das es nicht kennt.</p>
+      <h3>Die 5 wahrscheinlichsten</h3>
+      <ol id="liste"></ol>
+    </section>
+
+    <section id="fehler" class="card warn" hidden></section>
+
+    <details class="card">
+      <summary>Wie zuverlässig ist das?</summary>
+      <div id="qualitaet"><p>Wird geladen …</p></div>
+    </details>
+
+    <footer>
+      <p><strong>Keine Diagnose.</strong> Lernprojekt, kein Medizinprodukt. Die App kennt nur die Krankheiten aus ihren
+        Trainingsdaten und kann sich irren – besonders bei Handyfotos. Bei Hautveränderungen bitte immer einen Hautarzt fragen.</p>
+      <p class="hint" id="status"></p>
+    </footer>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

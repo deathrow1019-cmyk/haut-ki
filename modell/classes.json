@@ -1,0 +1,166 @@
+{
+  "model_name": "convnext_tiny.fb_in22k_ft_in1k",
+  "img_size": 224,
+  "mean": [
+    0.485,
+    0.456,
+    0.406
+  ],
+  "std": [
+    0.229,
+    0.224,
+    0.225
+  ],
+  "classes": [
+    {
+      "key": "melanom",
+      "name": "Melanom (schwarzer Hautkrebs)",
+      "gruppe": "Hautkrebs & Muttermale",
+      "risiko": "hoch"
+    },
+    {
+      "key": "basaliom",
+      "name": "Basalzellkarzinom (weißer Hautkrebs)",
+      "gruppe": "Hautkrebs & Muttermale",
+      "risiko": "hoch"
+    },
+    {
+      "key": "plattenepithel",
+      "name": "Plattenepithelkarzinom (weißer Hautkrebs)",
+      "gruppe": "Hautkrebs & Muttermale",
+      "risiko": "hoch"
+    },
+    {
+      "key": "aktinische_keratose",
+      "name": "Aktinische Keratose (Hautkrebs-Vorstufe)",
+      "gruppe": "Hautkrebs & Muttermale",
+      "risiko": "mittel"
+    },
+    {
+      "key": "naevus",
+      "name": "Muttermal / Leberfleck (Nävus)",
+      "gruppe": "Hautkrebs & Muttermale",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "seb_keratose",
+      "name": "Alterswarze / gutartige Keratose",
+      "gruppe": "Hautkrebs & Muttermale",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "dermatofibrom",
+      "name": "Dermatofibrom",
+      "gruppe": "Hautkrebs & Muttermale",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "gefaess",
+      "name": "Gefäßveränderung (z. B. Blutschwamm)",
+      "gruppe": "Hautkrebs & Muttermale",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "ekzem",
+      "name": "Ekzem / Neurodermitis",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "kontaktekzem",
+      "name": "Kontaktekzem (allergisch/irritativ)",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "seb_dermatitis",
+      "name": "Seborrhoisches Ekzem",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "psoriasis",
+      "name": "Schuppenflechte (Psoriasis)",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "urtikaria",
+      "name": "Nesselsucht (Urtikaria)",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "insektenstich",
+      "name": "Insektenstich",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "akne",
+      "name": "Akne",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "follikulitis",
+      "name": "Haarbalgentzündung (Follikulitis)",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "tinea",
+      "name": "Hautpilz (Tinea)",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "pityriasis_versicolor",
+      "name": "Kleienpilzflechte (Pityriasis versicolor)",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "herpes_zoster",
+      "name": "Gürtelrose (Herpes zoster)",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "mittel"
+    },
+    {
+      "key": "herpes_simplex",
+      "name": "Herpes (Lippen-/Hautherpes)",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "impetigo",
+      "name": "Borkenflechte (Impetigo)",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "mittel"
+    },
+    {
+      "key": "pityriasis_rosea",
+      "name": "Röschenflechte (Pityriasis rosea)",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "lichen_planus",
+      "name": "Knötchenflechte (Lichen planus)",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "skabies",
+      "name": "Krätze (Skabies)",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "mittel"
+    },
+    {
+      "key": "lupus",
+      "name": "Hautlupus (Lupus erythematodes)",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "mittel"
+    }
+  ]
+}

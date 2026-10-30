@@ -1,0 +1,16 @@
+{
+  "name": "Haut-KI",
+  "short_name": "Haut-KI",
+  "description": "Erkennt Hautveränderungen auf Fotos – direkt auf dem Gerät, offline. Lernprojekt, keine Diagnose.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f3ef",
+  "theme_color": "#f6f3ef",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
