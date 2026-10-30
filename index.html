@@ -51,12 +51,47 @@
       <h2 id="top-name"></h2>
       <p id="top-prozent" class="big"></p>
       <p id="hinweis"></p>
+      <p id="eigen-hinweis" class="eigen" hidden></p>
       <p id="unsicher" class="warn" hidden>⚠️ <strong>Das Modell ist sich unsicher.</strong> Mehrere Möglichkeiten liegen nah beieinander, oder das Bild zeigt etwas, das es nicht kennt.</p>
       <h3>Die 5 wahrscheinlichsten</h3>
       <ol id="liste"></ol>
+
+      <div class="befund">
+        <button type="button" id="befund-auf" class="btn">🩺 Arzt-Befund zu diesem Foto eintragen</button>
+        <form id="befund-form" hidden>
+          <p class="hint">Nur eintragen, was ein <strong>Hautarzt festgestellt</strong> hat. Die App lernt daraus und
+            erkennt ähnliche Fotos danach besser. Alles bleibt auf diesem iPhone.</p>
+          <label>Diagnose vom Hautarzt
+            <select id="befund-label" required></select>
+          </label>
+          <label>Notiz (optional)
+            <input id="befund-notiz" maxlength="120" placeholder="z. B. Körperstelle, Datum der Untersuchung">
+          </label>
+          <label class="check"><input type="checkbox" id="befund-arzt" required> Das hat ein Hautarzt festgestellt</label>
+          <div class="actions">
+            <button type="submit" class="btn primary">Speichern</button>
+            <button type="button" id="befund-abbruch" class="btn">Abbrechen</button>
+          </div>
+        </form>
+        <p id="befund-ok" class="ok" hidden></p>
+      </div>
     </section>
 
     <section id="fehler" class="card warn" hidden></section>
+
+    <details class="card">
+      <summary>🧠 Dazugelernt <span id="gelernt-zahl"></span></summary>
+      <p class="hint">Arzt-Befunde, die du eingetragen hast. Sie bleiben nur auf diesem iPhone und fließen sofort in
+        die Ergebnisse ähnlicher Fotos ein. Eine Hautkrebs-Warnung können sie nie abschwächen.</p>
+      <p id="gelernt-leer" class="hint">Noch keine Befunde. Nach einer Analyse: „Arzt-Befund eintragen“.</p>
+      <ul id="gelernt-liste"></ul>
+      <div class="actions" id="gelernt-aktionen" hidden>
+        <button type="button" id="export" class="btn">Für das nächste Training exportieren</button>
+        <button type="button" id="alle-loeschen" class="btn danger">Alle löschen</button>
+      </div>
+      <p class="hint">Der Export erstellt eine Datei mit Fotos und Befunden, z. B. zum Sichern in „Dateien“ oder
+        Google Drive. Damit lernt beim nächsten Training auch das große Modell dazu.</p>
+    </details>
 
     <details class="card">
       <summary>Wie zuverlässig ist das?</summary>

@@ -1,5 +1,6 @@
 // Haut-KI auf dem iPhone: Modell läuft lokal per onnxruntime-web (WebAssembly), kein Foto verlässt das Gerät.
 import * as ort from "./ort/ort.wasm.min.mjs";
+import * as lernen from "./lernen.js";
 
 ort.env.wasm.wasmPaths = new URL("./ort/", import.meta.url).href;
 // Mehrere Threads bräuchten Cross-Origin-Isolation, die statische Hosts nicht setzen können.
@@ -14,10 +15,12 @@ const HINWEIS = {
   mittel: "🟠 <strong>Sollte ärztlich abgeklärt werden</strong>, z. B. weil es eine Vorstufe, ansteckend oder behandlungsbedürftig sein kann.",
   niedrig: "🟢 <strong>Meist harmlos oder gut behandelbar.</strong> Bei Beschwerden, Veränderung oder Unsicherheit trotzdem zum Arzt.",
 };
-const QUELLE = { isic: "Dermatoskop-Aufnahmen", fitz: "Klinische Fotos", scin: "Handyfotos" };
+const QUELLE = { isic: "Dermatoskop-Aufnahmen", fitz: "Klinische Fotos", scin: "Handyfotos (SCIN)", pad: "Handyfotos (PAD-UFES)" };
 
 const $ = (id) => document.getElementById(id);
 let meta, session;
+let befunde = [];   // eigene Arzt-Befunde (IndexedDB)
+let letzte = null;  // letzte Analyse: Merkmale + kleines Bild, falls ein Befund dazu eingetragen wird
 
 function zeige(id, an = true) { $(id).hidden = !an; }
 function fehler(text) { $("fehler").textContent = text; zeige("fehler"); }
@@ -56,6 +59,7 @@ async function start() {
   $("laden-text").textContent = "Rechenkern wird gestartet …";
   session = await ort.InferenceSession.create(bytes, { executionProviders: ["wasm"] });
   zeige("laden", false);
+  await ladeBefunde();
   $("status").textContent = navigator.serviceWorker?.controller ? "✓ Offline bereit" : "";
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
 }
@@ -132,11 +136,10 @@ async function analysiere(file) {
   try {
     if (!session) await bereit;
     const bmp = await dekodiere(file);
-    const out = await session.run({ bild: alsTensor(bmp) });
+    const { probs, merkmale } = await rechne(bmp);
+    letzte = { merkmale, bild: await lernen.kleinesBild(bmp) };
     bmp.close?.();
-    const K = meta.classes.length, logits = Array.from(out.logits.data);
-    const a = softmax(logits.slice(0, K)), b = softmax(logits.slice(K, 2 * K));
-    zeigeErgebnis(a.map((v, i) => (v + b[i]) / 2));
+    zeigeErgebnis(probs, merkmale);
   } catch (e) {
     console.error(e);
     fehler(`Das Bild konnte nicht ausgewertet werden (${e.message || e}). Bitte ein anderes Foto versuchen.`);
@@ -146,11 +149,34 @@ async function analysiere(file) {
   }
 }
 
-function zeigeErgebnis(probs) {
+/** Ein Bild durchs Modell: Wahrscheinlichkeiten und Merkmalsvektor (je Mittel aus Original und Spiegelbild). */
+async function rechne(bmp) {
+  const out = await session.run({ bild: alsTensor(bmp) });
+  const K = meta.classes.length, logits = Array.from(out.logits.data);
+  const a = softmax(logits.slice(0, K)), b = softmax(logits.slice(K, 2 * K));
+  const f = out.merkmale.data, D = f.length / 2;
+  return {
+    probs: a.map((v, i) => (v + b[i]) / 2),
+    merkmale: lernen.normiere(Array.from({ length: D }, (_, i) => (f[i] + f[D + i]) / 2)),
+  };
+}
+
+const krebsAnteil = (probs) => meta.classes.reduce((s, c, i) => s + (c.risiko === "hoch" ? probs[i] : 0), 0);
+
+function zeigeErgebnis(modellProbs, merkmale) {
+  const eigen = lernen.beimischen(modellProbs, merkmale, befunde, meta.classes);
+  const probs = eigen ? eigen.probs : modellProbs;
   const ranked = meta.classes.map((c, i) => ({ ...c, p: probs[i] })).sort((x, y) => y.p - x.p);
   const top = ranked[0];
-  const krebs = ranked.filter((c) => c.risiko === "hoch").reduce((s, c) => s + c.p, 0);
+  // Sicherheitsregel: eigene Befunde dürfen eine Hautkrebs-Warnung des Modells nie abschwächen
+  const krebs = Math.max(krebsAnteil(modellProbs), krebsAnteil(probs));
   const risiko = krebs >= KREBS_SCHWELLE ? "hoch" : top.risiko;
+  $("eigen-hinweis").hidden = !eigen;
+  if (eigen) {
+    $("eigen-hinweis").textContent = `🧠 Berücksichtigt ${eigen.anzahl === 1 ? "einen eigenen Befund" : `${eigen.anzahl} eigene Befunde`}` +
+      ` einer sehr ähnlichen Stelle (Anteil ${prozent(eigen.alpha)}).`;
+  }
+  befundFormular(false);
 
   $("ampel").className = `ampel ${risiko}`;
   $("top-name").textContent = top.name;
@@ -190,6 +216,129 @@ async function zeigeQualitaet() {
     box.innerHTML = "<p>Keine Testwerte vorhanden.</p>";
   }
 }
+
+// ---------- Dazulernen: Arzt-Befunde ----------
+
+async function ladeBefunde() {
+  try {
+    befunde = await lernen.alle();
+  } catch (e) {
+    console.warn("Befunde nicht lesbar:", e);
+    befunde = [];
+  }
+  // Neues Modell: gespeicherte Befunde mit dem neuen Modell neu durchrechnen, sonst passen die Merkmale nicht
+  const alt = befunde.filter((b) => b.modell !== meta.model_version && b.bild);
+  for (const b of alt) {
+    try {
+      const bmp = await createImageBitmap(b.bild);
+      b.merkmale = (await rechne(bmp)).merkmale;
+      bmp.close?.();
+      b.modell = meta.model_version;
+      await lernen.speichere(b);
+    } catch (e) {
+      console.warn("Befund nicht neu berechnet:", e);
+    }
+  }
+  zeigeBefunde();
+}
+
+function befundFormular(offen) {
+  zeige("befund-form", offen);
+  zeige("befund-auf", !offen);
+  if (!offen) zeige("befund-ok", false);
+}
+
+function fuelleAuswahl() {
+  const sel = $("befund-label");
+  const leer = new Option("Bitte wählen …", "");
+  leer.disabled = true; leer.selected = true;
+  const gruppen = {};
+  for (const c of meta.classes) (gruppen[c.gruppe] ||= []).push(c);
+  sel.replaceChildren(leer, ...Object.entries(gruppen).map(([g, cs]) => {
+    const og = document.createElement("optgroup");
+    og.label = g;
+    og.append(...cs.map((c) => new Option(c.name, c.key)));
+    return og;
+  }), new Option("Etwas anderes (nicht in der Liste)", "andere"));
+}
+
+async function speichereBefund(ev) {
+  ev.preventDefault();
+  if (!letzte) return;
+  const label = $("befund-label").value;
+  if (!label || !$("befund-arzt").checked) return;
+  const b = {
+    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    datum: new Date().toISOString(),
+    label,
+    notiz: $("befund-notiz").value.trim(),
+    merkmale: letzte.merkmale,
+    bild: letzte.bild,
+    modell: meta.model_version,
+  };
+  try {
+    await lernen.speichere(b);
+  } catch (e) {
+    fehler(`Befund konnte nicht gespeichert werden (${e?.message || e || "unbekannter Fehler"}).`);
+    return;
+  }
+  befunde.push(b);
+  zeigeBefunde();
+  zeige("befund-form", false);
+  $("befund-ok").textContent = label === "andere"
+    ? "✓ Gespeichert. Für den Export vorgemerkt (die App kennt diese Krankheit noch nicht)."
+    : "✓ Gespeichert. Ähnliche Fotos berücksichtigen diesen Befund ab sofort.";
+  zeige("befund-ok");
+}
+
+function zeigeBefunde() {
+  const name = Object.fromEntries(meta.classes.map((c) => [c.key, c.name]));
+  name.andere = "Etwas anderes";
+  $("gelernt-zahl").textContent = befunde.length ? `(${befunde.length})` : "";
+  zeige("gelernt-leer", !befunde.length);
+  zeige("gelernt-aktionen", befunde.length > 0);
+  const sortiert = [...befunde].sort((a, b) => b.datum.localeCompare(a.datum));
+  $("gelernt-liste").replaceChildren(...sortiert.map((b) => {
+    const li = document.createElement("li");
+    li.className = "befund-eintrag";
+    const img = document.createElement("img");
+    img.alt = "";
+    if (b.bild) img.src = URL.createObjectURL(b.bild);
+    const text = document.createElement("div");
+    const titel = document.createElement("strong");
+    titel.textContent = name[b.label] || b.label;
+    const info = document.createElement("span");
+    info.textContent = new Date(b.datum).toLocaleDateString("de-DE") + (b.notiz ? ` · ${b.notiz}` : "");
+    text.append(titel, info);
+    const weg = document.createElement("button");
+    weg.className = "btn klein";
+    weg.textContent = "Löschen";
+    weg.addEventListener("click", async () => {
+      await lernen.loesche(b.id);
+      befunde = befunde.filter((x) => x.id !== b.id);
+      zeigeBefunde();
+    });
+    li.append(img, text, weg);
+    return li;
+  }));
+}
+
+$("befund-auf").addEventListener("click", () => {
+  fuelleAuswahl();
+  $("befund-notiz").value = "";
+  $("befund-arzt").checked = false;
+  befundFormular(true);
+});
+$("befund-abbruch").addEventListener("click", () => befundFormular(false));
+$("befund-form").addEventListener("submit", speichereBefund);
+$("export").addEventListener("click", () => lernen.exportiere(befunde, meta.model_version)
+  .catch((e) => fehler(`Export fehlgeschlagen (${e.message || e}).`)));
+$("alle-loeschen").addEventListener("click", async () => {
+  if (!confirm(`Alle ${befunde.length} eingetragenen Befunde von diesem iPhone löschen?`)) return;
+  await lernen.loescheAlle();
+  befunde = [];
+  zeigeBefunde();
+});
 
 const bereit = start().catch((e) => {
   console.error(e);
