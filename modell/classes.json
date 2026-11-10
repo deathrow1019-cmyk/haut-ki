@@ -1,6 +1,6 @@
 {
   "model_name": "convnext_tiny.fb_in22k_ft_in1k",
-  "img_size": 224,
+  "img_size": 256,
   "mean": [
     0.485,
     0.456,
@@ -62,13 +62,7 @@
     },
     {
       "key": "ekzem",
-      "name": "Ekzem / Neurodermitis",
-      "gruppe": "Hautkrankheiten",
-      "risiko": "niedrig"
-    },
-    {
-      "key": "kontaktekzem",
-      "name": "Kontaktekzem (allergisch/irritativ)",
+      "name": "Ekzem / Dermatitis (auch Kontaktekzem, Neurodermitis)",
       "gruppe": "Hautkrankheiten",
       "risiko": "niedrig"
     },
@@ -157,11 +151,17 @@
       "risiko": "mittel"
     },
     {
+      "key": "keratosis_pilaris",
+      "name": "Reibeisenhaut (Keratosis pilaris)",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
       "key": "lupus",
       "name": "Hautlupus (Lupus erythematodes)",
       "gruppe": "Hautkrankheiten",
       "risiko": "mittel"
     }
   ],
-  "model_version": "fd0dfbc8ba42"
+  "model_version": "5fe2f9ae152a"
 }
