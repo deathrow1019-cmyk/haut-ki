@@ -1,5 +1,5 @@
 // Offline-Speicher: App-Dateien beim Installieren, das Modell beim ersten Laden. Danach alles aus dem Cache.
-const VERSION = "haut-ki-v5";
+const VERSION = "haut-ki-v6";
 const SHELL = [
   "./", "index.html", "style.css", "app.js", "lernen.js", "manifest.webmanifest",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png",

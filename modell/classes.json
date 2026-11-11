@@ -97,6 +97,12 @@
       "risiko": "niedrig"
     },
     {
+      "key": "rosazea",
+      "name": "Rosazea",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
       "key": "follikulitis",
       "name": "Haarbalgentzündung (Follikulitis)",
       "gruppe": "Hautkrankheiten",
@@ -157,11 +163,17 @@
       "risiko": "niedrig"
     },
     {
+      "key": "vitiligo",
+      "name": "Weißfleckenkrankheit (Vitiligo)",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
       "key": "lupus",
       "name": "Hautlupus (Lupus erythematodes)",
       "gruppe": "Hautkrankheiten",
       "risiko": "mittel"
     }
   ],
-  "model_version": "54d38326de2d"
+  "model_version": "fb426c89d9ec"
 }
