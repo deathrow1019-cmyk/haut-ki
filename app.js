@@ -25,6 +25,8 @@ let meta, session;
 let befunde = [];   // eigene Arzt-Befunde (IndexedDB)
 let vorschauUrl = null;
 let letzte = null;  // letzte Analyse: Merkmale + kleines Bild, falls ein Befund dazu eingetragen wird
+let serie = null;   // mehrere Fotos derselben Stelle: { summe: Wahrscheinlichkeiten aufsummiert, n: Anzahl }
+let anhaengen = false; // nächstes Foto gehört zur selben Stelle (Knopf „Weiteres Foto“)
 
 function zeige(id, an = true) { $(id).hidden = !an; }
 function fehler(text) { $("fehler").textContent = text; zeige("fehler"); }
@@ -155,6 +157,37 @@ function alsTensor(bmp) {
   return new ort.Tensor("float32", data, [2, 3, C, C]);
 }
 
+/** Grobe Prüfung der Fotoqualität (auf 256 px verkleinert): zu dunkel, überbelichtet, unscharf, zu klein.
+ *  Schwellen an scharfen und künstlich verschlechterten Bildern eingestellt; bewusst vorsichtig (lieber kein Fehlalarm). */
+function pruefeFoto(bmp) {
+  const probleme = [];
+  const kurz = Math.min(bmp.width, bmp.height);
+  if (kurz < 200) probleme.push("sehr klein (wenig Details)");
+  const f = 256 / kurz, w = Math.max(8, Math.round(bmp.width * f)), h = Math.max(8, Math.round(bmp.height * f));
+  const px = verkleinere(bmp, w, h).getImageData(0, 0, w, h).data;
+  const y = new Float32Array(w * h);
+  let summe = 0, hell = 0;
+  for (let i = 0; i < w * h; i++) {
+    y[i] = 0.299 * px[4 * i] + 0.587 * px[4 * i + 1] + 0.114 * px[4 * i + 2];
+    summe += y[i];
+    if (y[i] > 245) hell++;
+  }
+  const mittel = summe / (w * h);
+  if (mittel < 55) probleme.push("zu dunkel");
+  else if (mittel > 225 || hell / (w * h) > 0.4) probleme.push("überbelichtet");
+  // Schärfe: Streuung des Laplace-Filters (Kanten). Scharfe Fotos liegen bei 15–50, deutlich unscharfe unter 2.
+  let s1 = 0, s2 = 0, n = 0;
+  for (let r = 1; r < h - 1; r++) {
+    for (let c = 1; c < w - 1; c++) {
+      const i = r * w + c, v = 4 * y[i] - y[i - 1] - y[i + 1] - y[i - w] - y[i + w];
+      s1 += v; s2 += v * v; n++;
+    }
+  }
+  const schaerfe = s2 / n - (s1 / n) ** 2;
+  if (schaerfe < 3 && !probleme.length) probleme.push("unscharf");
+  return { probleme, mittel, schaerfe };
+}
+
 function softmax(row) {
   const m = Math.max(...row);
   const e = row.map((v) => Math.exp(v - m));
@@ -174,11 +207,26 @@ async function analysiere(file) {
   try {
     if (!session) await bereit;
     const bmp = await dekodiere(file);
-    const { probs, merkmale } = await rechne(bmp);
+    const foto = pruefeFoto(bmp);
+    let { probs, merkmale } = await rechne(bmp);
     letzte = { merkmale, bild: await lernen.kleinesBild(bmp) };
     bmp.close?.();
+    // Mehrere Fotos derselben Stelle: Wahrscheinlichkeiten mitteln (ein einzelnes Foto kann täuschen)
+    if (anhaengen && serie && serie.summe.length === probs.length) {
+      serie = { summe: serie.summe.map((v, i) => v + probs[i]), n: serie.n + 1 };
+    } else {
+      serie = { summe: probs.slice(), n: 1 };
+    }
+    anhaengen = false;
+    probs = serie.summe.map((v) => v / serie.n);
     zeigeErgebnis(probs, merkmale);
+    $("serie-hinweis").hidden = serie.n < 2;
+    $("serie-hinweis").textContent = `📷 Mittel aus ${serie.n} Fotos derselben Stelle.`;
+    $("foto-warnung").hidden = !foto.probleme.length;
+    $("foto-warnung").innerHTML = `⚠️ <strong>Das Foto ist ${foto.probleme.join(" und ")}.</strong> Das Ergebnis ist dadurch ` +
+      `unzuverlässiger – am besten bei Tageslicht, scharf gestellt und nah genug noch einmal aufnehmen.`;
   } catch (e) {
+    anhaengen = false;
     console.error(e);
     fehler(`Das Bild konnte nicht ausgewertet werden (${e.message || e}). Bitte ein anderes Foto versuchen.`);
   } finally {
@@ -423,6 +471,13 @@ $("datei").addEventListener("change", (ev) => {
   const f = ev.target.files?.[0];
   ev.target.value = "";
   if (f) analysiere(f);
+});
+
+// Normale Auswahl beginnt eine neue Stelle; der Knopf „Weiteres Foto“ hängt an die bisherige an.
+$("pick").addEventListener("click", () => { anhaengen = false; });
+$("weiteres-foto").addEventListener("click", () => {
+  $("datei").click();   // löst auch den Klick-Handler oben aus (setzt zurück) – deshalb erst danach merken
+  anhaengen = true;
 });
 
 if ("serviceWorker" in navigator) {
