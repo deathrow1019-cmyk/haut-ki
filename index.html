@@ -23,6 +23,14 @@
       <p class="sub">Foto einer Hautstelle – die Auswertung passiert nur auf diesem Gerät.</p>
     </header>
 
+    <section id="installieren" class="card" hidden>
+      <p><strong>📲 Als App aufs iPhone legen</strong></p>
+      <p class="hint">In Safari unten auf <strong>Teilen</strong> tippen und <strong>„Zum Home-Bildschirm“</strong> wählen.
+        Dann startet Haut-KI wie eine normale App, läuft offline, und deine eingetragenen Arzt-Befunde bleiben
+        dauerhaft gespeichert (Safari löscht sie sonst nach einigen Wochen ohne Nutzung).</p>
+      <div class="actions"><button type="button" id="installieren-zu" class="btn klein">Verstanden</button></div>
+    </section>
+
     <section id="laden" class="card" hidden>
       <p id="laden-text">Modell wird vorbereitet …</p>
       <div class="bar"><div id="laden-balken"></div></div>
@@ -40,6 +48,8 @@
           <span>Scharf, gut beleuchtet, die Stelle in der Mitte</span>
         </span>
       </label>
+      <input id="kamera" type="file" accept="image/*" capture="environment" hidden>
+      <button type="button" id="kamera-knopf" class="btn breit">📸 Direkt die Kamera öffnen</button>
       <figure id="vorschau" hidden>
         <img id="vorschau-bild" alt="Ausgewähltes Foto">
         <div class="crop-hint" aria-hidden="true"></div>

@@ -34,6 +34,10 @@
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
+/* iPhone: kein Doppeltipp-Zoom (Tippen reagiert sofort), kein Gummiband-Nachladen, keine Textauswahl auf Knöpfen */
+html, body { touch-action: manipulation; overscroll-behavior-y: none; }
+button, summary, .pick { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+[hidden] { display: none !important; }
 body {
   margin: 0;
   background: var(--bg);
@@ -102,6 +106,12 @@ li:first-child { border-top: 0; }
   padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line);
   background: var(--bg); color: var(--text); cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
+.btn { min-height: 44px; }   /* Apples Mindestgröße für Tippflächen */
+.btn.klein { min-height: 36px; }
+.btn.breit { width: 100%; margin-top: 14px; }
+#weiteres-foto { width: 100%; margin-top: 14px; }
+details summary { min-height: 28px; -webkit-tap-highlight-color: transparent; }
+.btn:active { transform: scale(0.98); opacity: 0.85; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn.danger { color: var(--red); }
 .btn.klein { padding: 6px 10px; font-size: 13px; font-weight: 500; }

@@ -473,6 +473,24 @@ $("datei").addEventListener("change", (ev) => {
   if (f) analysiere(f);
 });
 
+$("kamera").addEventListener("change", (ev) => {
+  const f = ev.target.files?.[0];
+  ev.target.value = "";
+  if (f) analysiere(f);
+});
+$("kamera-knopf").addEventListener("click", () => { anhaengen = false; $("kamera").click(); });
+
+// iPhone/iPad in Safari (nicht vom Home-Bildschirm gestartet): Hinweis zum Installieren, einmal wegklickbar
+try {
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const alsApp = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+  if (ios && !alsApp && localStorage.getItem("installieren-zu") !== "1") zeige("installieren");
+  $("installieren-zu").addEventListener("click", () => {
+    zeige("installieren", false);
+    try { localStorage.setItem("installieren-zu", "1"); } catch { /* privater Modus */ }
+  });
+} catch { /* ohne Hinweis weiter */ }
+
 // Normale Auswahl beginnt eine neue Stelle; der Knopf „Weiteres Foto“ hängt an die bisherige an.
 $("pick").addEventListener("click", () => { anhaengen = false; });
 $("weiteres-foto").addEventListener("click", () => {
