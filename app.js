@@ -15,7 +15,7 @@ const HINWEIS = {
   mittel: "🟠 <strong>Sollte ärztlich abgeklärt werden</strong>, z. B. weil es eine Vorstufe, ansteckend oder behandlungsbedürftig sein kann.",
   niedrig: "🟢 <strong>Meist harmlos oder gut behandelbar.</strong> Bei Beschwerden, Veränderung oder Unsicherheit trotzdem zum Arzt.",
 };
-const QUELLE = { isic: "Dermatoskop-Aufnahmen", fitz: "Klinische Fotos", scin: "Handyfotos (SCIN)", pad: "Handyfotos (PAD-UFES)" };
+const QUELLE = { isic: "Dermatoskop-Aufnahmen", fitz: "Klinische Fotos", scin: "Handyfotos (SCIN)", pad: "Handyfotos (PAD-UFES)", mednode: "Klinische Fotos (MED-NODE)" };
 
 const $ = (id) => document.getElementById(id);
 let meta, session;
