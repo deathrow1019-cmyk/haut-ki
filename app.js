@@ -8,7 +8,9 @@ ort.env.wasm.numThreads = 1;
 
 const MODEL_URL = "modell/haut-ki.onnx";
 const UNSICHER = 0.35;     // Spitzenreiter darunter: Ergebnis gilt als unsicher
-const KREBS_SCHWELLE = 0.25; // Hautkrebs-Klassen zusammen ab hier: rote Ampel
+// Hautkrebs-Klassen zusammen: ab "rot" rote Ampel, ab "gelb" mindestens „abklären“. Die Werte kommen mit dem Modell
+// (modell/warnung.json, gemessen an Testbildern); das hier sind nur die Ersatzwerte, falls die Datei fehlt.
+let warnung = { schwelle_rot: 0.25, schwelle_gelb: 0.10 };
 
 const HINWEIS = {
   hoch: "🔴 <strong>Möglicher Hautkrebs.</strong> Bitte zeitnah einen Hautarzt aufsuchen und die Stelle untersuchen lassen.",
@@ -16,7 +18,7 @@ const HINWEIS = {
   niedrig: "🟢 <strong>Meist harmlos oder gut behandelbar.</strong> Bei Beschwerden, Veränderung oder Unsicherheit trotzdem zum Arzt.",
 };
 const QUELLE = { isic: "Dermatoskop-Aufnahmen", fitz: "Klinische Fotos", scin: "Handyfotos (SCIN)", pad: "Handyfotos (PAD-UFES)", mednode: "Klinische Fotos (MED-NODE)",
-  milk: "Nahaufnahmen (MILK10k)", milkderm: "Dermatoskop-Aufnahmen (MILK10k)", eigene: "Eigene Befunde" };
+  dermnet: "Klinische Fotos (DermNet)", milk: "Nahaufnahmen (MILK10k)", milkderm: "Dermatoskop-Aufnahmen (MILK10k)", eigene: "Eigene Befunde" };
 
 const $ = (id) => document.getElementById(id);
 let meta, session;
@@ -67,7 +69,13 @@ async function ladeModell() {
       $("laden-text").textContent = `Modell wird geladen … ${Math.round(p * 100)} %`;
     }, opt);
     const ist = meta.model_version && (await fingerabdruck(bytes));
-    if (!ist || ist === meta.model_version) return bytes;
+    if (!ist || ist === meta.model_version) {
+      try {   // Schwellen und Messwerte der Hautkrebs-Warnung – nur wenn sie zu genau diesem Modell gehören
+        const w = await (await fetch("modell/warnung.json", opt)).json();
+        if (w.modell === meta.model_version && w.schwelle_rot > 0 && w.schwelle_gelb > 0) warnung = w;
+      } catch { /* Ersatzwerte bleiben */ }
+      return bytes;
+    }
     console.warn(`Modell (${ist}) passt nicht zur Klassenliste (${meta.model_version})${frisch ? "" : " – lade neu"}`);
     zeige("laden");
   }
@@ -200,7 +208,9 @@ function zeigeErgebnis(modellProbs, merkmale) {
   const top = ranked[0];
   // Sicherheitsregel: eigene Befunde dürfen eine Hautkrebs-Warnung des Modells nie abschwächen
   const krebs = Math.max(krebsAnteil(modellProbs), krebsAnteil(probs));
-  const risiko = krebs >= KREBS_SCHWELLE ? "hoch" : top.risiko;
+  // Grauzone: Hautkrebs nicht wahrscheinlich, aber auch nicht ausgeschlossen -> nie „grün“
+  const grauzone = krebs < warnung.schwelle_rot && krebs >= warnung.schwelle_gelb;
+  const risiko = krebs >= warnung.schwelle_rot ? "hoch" : grauzone && top.risiko === "niedrig" ? "mittel" : top.risiko;
   $("eigen-hinweis").hidden = !eigen;
   if (eigen) {
     $("eigen-hinweis").textContent = `🧠 Berücksichtigt ${eigen.anzahl === 1 ? "einen eigenen Befund" : `${eigen.anzahl} eigene Befunde`}` +
@@ -212,7 +222,8 @@ function zeigeErgebnis(modellProbs, merkmale) {
   $("top-name").textContent = top.name;
   $("top-prozent").textContent = `Am wahrscheinlichsten · ${prozent(top.p)}`;
   $("hinweis").innerHTML = HINWEIS[risiko] +
-    (risiko === "hoch" && top.risiko !== "hoch" ? ` Die Hautkrebs-Arten zusammen kommen auf <strong>${prozent(krebs)}</strong>.` : "");
+    (risiko === "hoch" && top.risiko !== "hoch" ? ` Die Hautkrebs-Arten zusammen kommen auf <strong>${prozent(krebs)}</strong>.` : "") +
+    (grauzone ? ` Hautkrebs ist nicht sicher ausgeschlossen (zusammen <strong>${prozent(krebs)}</strong>) – bitte beobachten und im Zweifel zeigen.` : "");
   zeige("unsicher", top.p < UNSICHER);
 
   const liste = $("liste");
@@ -227,6 +238,23 @@ function zeigeErgebnis(modellProbs, merkmale) {
   $("ergebnis").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+// Wie verlässlich ist die Hautkrebs-Warnung? (gemessen an Testbildern, siehe modell/warnung.json)
+function warnungText() {
+  const t = warnung.test;
+  if (!t) return "";
+  const von100 = (p) => `${Math.round(p * 100)} von 100`;
+  const zeile = (a, b) => `<tr><td>${a}</td><td>${b}</td></tr>`;
+  return `<h3>Hautkrebs-Warnung</h3><p>Gemessen an ${t.n_krebs} Hautkrebs- und ${t.n_gutartig} gutartigen Testbildern:</p><table>` +
+    zeile("Hautkrebs-Bilder mit roter Warnung", von100(t.rot.erkannt)) +
+    zeile("… mit roter Warnung oder „nicht ausgeschlossen“", von100(t.gelb.erkannt)) +
+    zeile("Gutartige Bilder mit roter Warnung (Fehlalarm)", von100(t.rot.fehlalarm)) +
+    zeile("… mit roter Warnung oder „nicht ausgeschlossen“", von100(t.gelb.fehlalarm)) +
+    (t.handy ? zeile("Nur Handyfotos: Hautkrebs mit roter Warnung", von100(t.handy.rot.erkannt)) +
+      zeile("Nur Handyfotos: Fehlalarm (rot)", von100(t.handy.rot.fehlalarm)) : "") +
+    `</table><p class="hint">Die App übersieht also einzelne Hautkrebs-Fälle und warnt oft auch bei harmlosen Stellen. ` +
+    `Eine grüne Ampel ist keine Entwarnung.</p>`;
+}
+
 async function zeigeQualitaet() {
   const box = $("qualitaet");
   try {
@@ -239,6 +267,7 @@ async function zeigeQualitaet() {
       zeile("Richtige Antwort unter den Top 3", prozent(t.top3)) +
       Object.entries(t.pro_quelle).map(([k, v]) => zeile(`… bei ${QUELLE[k] || k}`, prozent(v))).join("") +
       `</table><p class="hint">Bei eigenen Handyfotos ist die App deutlich unsicherer als bei Arzt-Aufnahmen.</p>` +
+      warnungText() +
       `<h3>Pro Krankheit (wie oft richtig erkannt)</h3><table>` +
       Object.entries(t.pro_klasse).sort((a, b) => b[1] - a[1]).map(([k, v]) => zeile(name[k] || k, prozent(v))).join("") +
       `</table>`;

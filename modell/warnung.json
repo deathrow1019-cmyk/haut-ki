@@ -1,0 +1,27 @@
+{
+ "modell": "fb426c89d9ec",
+ "schwelle_rot": 0.25,
+ "schwelle_gelb": 0.1,
+ "test": {
+  "n_krebs": 3302,
+  "n_gutartig": 5742,
+  "rot": {
+   "erkannt": 0.9437,
+   "fehlalarm": 0.1987
+  },
+  "gelb": {
+   "erkannt": 0.98,
+   "fehlalarm": 0.3525
+  },
+  "handy": {
+   "rot": {
+    "erkannt": 0.9439,
+    "fehlalarm": 0.1644
+   },
+   "gelb": {
+    "erkannt": 0.9784,
+    "fehlalarm": 0.2547
+   }
+  }
+ }
+}
