@@ -93,7 +93,7 @@ ol, ul { list-style: none; padding: 0; margin: 0; }
 li { padding: 7px 0; border-top: 1px solid var(--line); }
 li:first-child { border-top: 0; }
 .row { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; }
-.row b { font-variant-numeric: tabular-nums; font-weight: 600; }
+.row b { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; flex: none; }
 .mini { height: 6px; background: var(--line); border-radius: 99px; margin-top: 5px; overflow: hidden; }
 .mini > div { height: 100%; background: var(--bar); border-radius: 99px; }
 .warn { color: var(--text); background: var(--accent-soft); border-radius: 12px; padding: 10px 12px; margin: 10px 0 0; font-size: 15px; }
@@ -110,7 +110,8 @@ li:first-child { border-top: 0; }
 .btn.klein { min-height: 36px; }
 .btn.breit { width: 100%; margin-top: 14px; }
 #weiteres-foto { width: 100%; margin-top: 14px; }
-details summary { min-height: 28px; -webkit-tap-highlight-color: transparent; }
+details summary { padding: 10px 0; margin: -10px 0; -webkit-tap-highlight-color: transparent; }   /* 44 px Tippfläche */
+details[open] summary { margin-bottom: 0; }
 .btn:active { transform: scale(0.98); opacity: 0.85; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn.danger { color: var(--red); }
