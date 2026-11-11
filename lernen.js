@@ -87,7 +87,7 @@ export async function exportiere(befunde, modellVersion) {
   const daten = {
     app: "haut-ki", format: 1, exportiert: new Date().toISOString(), modell: modellVersion,
     befunde: await Promise.all(befunde.map(async (b) => ({
-      id: b.id, datum: b.datum, label: b.label, notiz: b.notiz || "", bild: await alsDataUrl(b.bild),
+      id: b.id, datum: b.datum, label: b.label, notiz: b.notiz || "", bild: b.bild ? await alsDataUrl(b.bild) : "",
     }))),
   };
   const name = `haut-ki-befunde-${new Date().toISOString().slice(0, 10)}.json`;

@@ -15,19 +15,21 @@ const HINWEIS = {
   mittel: "🟠 <strong>Sollte ärztlich abgeklärt werden</strong>, z. B. weil es eine Vorstufe, ansteckend oder behandlungsbedürftig sein kann.",
   niedrig: "🟢 <strong>Meist harmlos oder gut behandelbar.</strong> Bei Beschwerden, Veränderung oder Unsicherheit trotzdem zum Arzt.",
 };
-const QUELLE = { isic: "Dermatoskop-Aufnahmen", fitz: "Klinische Fotos", scin: "Handyfotos (SCIN)", pad: "Handyfotos (PAD-UFES)", mednode: "Klinische Fotos (MED-NODE)" };
+const QUELLE = { isic: "Dermatoskop-Aufnahmen", fitz: "Klinische Fotos", scin: "Handyfotos (SCIN)", pad: "Handyfotos (PAD-UFES)", mednode: "Klinische Fotos (MED-NODE)",
+  milk: "Nahaufnahmen (MILK10k)", milkderm: "Dermatoskop-Aufnahmen (MILK10k)", eigene: "Eigene Befunde" };
 
 const $ = (id) => document.getElementById(id);
 let meta, session;
 let befunde = [];   // eigene Arzt-Befunde (IndexedDB)
+let vorschauUrl = null;
 let letzte = null;  // letzte Analyse: Merkmale + kleines Bild, falls ein Befund dazu eingetragen wird
 
 function zeige(id, an = true) { $(id).hidden = !an; }
 function fehler(text) { $("fehler").textContent = text; zeige("fehler"); }
 const prozent = (p) => (p < 0.005 ? "< 1 %" : `${Math.round(p * 100)} %`);
 
-async function ladeMitFortschritt(url, onProgress) {
-  const res = await fetch(url);
+async function ladeMitFortschritt(url, onProgress, opt) {
+  const res = await fetch(url, opt);
   if (!res.ok) throw new Error(`${url}: ${res.status}`);
   const total = Number(res.headers.get("content-length")) || 0;
   if (!res.body || !total) return new Uint8Array(await res.arrayBuffer());
@@ -47,15 +49,36 @@ async function ladeMitFortschritt(url, onProgress) {
   return out;
 }
 
+/** Kurzer Fingerabdruck der Modelldatei – steht auch in classes.json (model_version). */
+async function fingerabdruck(bytes) {
+  if (!crypto.subtle) return null;
+  const h = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return Array.from(h.slice(0, 6), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Lädt Klassenliste und Modell. Passen sie nicht zusammen (halb fertiges Update), wird einmal frisch aus dem Netz
+ *  geladen – sonst würden Krankheitsnamen und Modell-Ausgaben vertauscht, ohne dass man es merkt. */
+async function ladeModell() {
+  for (const frisch of [false, true]) {
+    const opt = frisch ? { cache: "reload" } : undefined;
+    meta = await (await fetch("modell/classes.json", opt)).json();
+    const bytes = await ladeMitFortschritt(MODEL_URL, (p) => {
+      $("laden-balken").style.width = `${Math.round(p * 100)}%`;
+      $("laden-text").textContent = `Modell wird geladen … ${Math.round(p * 100)} %`;
+    }, opt);
+    const ist = meta.model_version && (await fingerabdruck(bytes));
+    if (!ist || ist === meta.model_version) return bytes;
+    console.warn(`Modell (${ist}) passt nicht zur Klassenliste (${meta.model_version})${frisch ? "" : " – lade neu"}`);
+    zeige("laden");
+  }
+  throw new Error("Modell-Update unvollständig – bitte die App mit Internet erneut öffnen");
+}
+
 async function start() {
-  meta = await (await fetch("modell/classes.json")).json();
-  zeigeQualitaet();
   const imCache = "caches" in window && (await caches.match(MODEL_URL));
   if (!imCache) zeige("laden");
-  const bytes = await ladeMitFortschritt(MODEL_URL, (p) => {
-    $("laden-balken").style.width = `${Math.round(p * 100)}%`;
-    $("laden-text").textContent = `Modell wird geladen … ${Math.round(p * 100)} %`;
-  });
+  const bytes = await ladeModell();
+  zeigeQualitaet();
   $("laden-text").textContent = "Rechenkern wird gestartet …";
   session = await ort.InferenceSession.create(bytes, { executionProviders: ["wasm"] });
   zeige("laden", false);
@@ -64,16 +87,21 @@ async function start() {
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
 }
 
-// Bild → Tensor wie beim Training: kürzere Seite auf 255 (Resize), Mitte 224×224 (CenterCrop), normalisiert.
+// Bild → Tensor wie beim Training: kürzere Seite auf img_size × 1,14 (Resize), Mitte ausschneiden (CenterCrop), normalisiert.
 async function dekodiere(file) {
   try {
     return await createImageBitmap(file);
   } catch {
     // z. B. HEIC: über <img> dekodieren lassen
     const img = new Image();
-    img.src = URL.createObjectURL(file);
-    await img.decode();
-    return createImageBitmap(img);
+    const url = URL.createObjectURL(file);
+    try {
+      img.src = url;
+      await img.decode();
+      return await createImageBitmap(img);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
   }
 }
 
@@ -129,7 +157,9 @@ function softmax(row) {
 async function analysiere(file) {
   zeige("fehler", false);
   zeige("ergebnis", false);
-  $("vorschau-bild").src = URL.createObjectURL(file);
+  if (vorschauUrl) URL.revokeObjectURL(vorschauUrl);
+  vorschauUrl = URL.createObjectURL(file);
+  $("vorschau-bild").src = vorschauUrl;
   zeige("vorschau");
   $("pick").classList.add("busy");
   $("pick-titel").textContent = "Wird analysiert …";
@@ -303,7 +333,10 @@ function zeigeBefunde() {
     li.className = "befund-eintrag";
     const img = document.createElement("img");
     img.alt = "";
-    if (b.bild) img.src = URL.createObjectURL(b.bild);
+    if (b.bild) {
+      img.src = URL.createObjectURL(b.bild);
+      img.onload = img.onerror = () => URL.revokeObjectURL(img.src);
+    }
     const text = document.createElement("div");
     const titel = document.createElement("strong");
     titel.textContent = name[b.label] || b.label;
@@ -314,7 +347,12 @@ function zeigeBefunde() {
     weg.className = "btn klein";
     weg.textContent = "Löschen";
     weg.addEventListener("click", async () => {
-      await lernen.loesche(b.id);
+      try {
+        await lernen.loesche(b.id);
+      } catch (e) {
+        fehler(`Befund konnte nicht gelöscht werden (${e?.message || e}).`);
+        return;
+      }
       befunde = befunde.filter((x) => x.id !== b.id);
       zeigeBefunde();
     });
@@ -335,7 +373,12 @@ $("export").addEventListener("click", () => lernen.exportiere(befunde, meta.mode
   .catch((e) => fehler(`Export fehlgeschlagen (${e.message || e}).`)));
 $("alle-loeschen").addEventListener("click", async () => {
   if (!confirm(`Alle ${befunde.length} eingetragenen Befunde von diesem iPhone löschen?`)) return;
-  await lernen.loescheAlle();
+  try {
+    await lernen.loescheAlle();
+  } catch (e) {
+    fehler(`Befunde konnten nicht gelöscht werden (${e?.message || e}).`);
+    return;
+  }
   befunde = [];
   zeigeBefunde();
 });
