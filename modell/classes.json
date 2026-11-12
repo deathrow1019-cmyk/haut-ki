@@ -179,7 +179,19 @@
       "name": "Hautlupus (Lupus erythematodes)",
       "gruppe": "Hautkrankheiten",
       "risiko": "mittel"
+    },
+    {
+      "key": "gesunde_haut",
+      "name": "Gesunde Haut / nichts Auffälliges",
+      "gruppe": "Kein Befund",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "kein_hautbild",
+      "name": "Kein Hautbild (etwas anderes fotografiert)",
+      "gruppe": "Kein Befund",
+      "risiko": "niedrig"
     }
   ],
-  "model_version": "2061853195fd"
+  "model_version": "2ccc24439d8c"
 }
