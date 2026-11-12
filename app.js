@@ -186,9 +186,10 @@ function pruefeFoto(bmp) {
     if (y[i] > 245) hell++;
   }
   const mittel = summe / (w * h);
-  if (mittel < 55) probleme.push("zu dunkel");
+  if (mittel < 75) probleme.push("zu dunkel");
   else if (mittel > 225 || hell / (w * h) > 0.4) probleme.push("überbelichtet");
-  // Schärfe: Streuung des Laplace-Filters (Kanten). Scharfe Fotos liegen bei 15–50, deutlich unscharfe unter 2.
+  // Schärfe: Streuung des Laplace-Filters (Kanten). Schwellen (dunkel 75, unscharf 20) an 4 echten iPhone-Fotos des Nutzers
+  // nachgestellt (unscharf: 15–18, dunkel: Helligkeit 67); scharfe Vergleichsbilder liegen bei 23–300.
   let s1 = 0, s2 = 0, n = 0;
   for (let r = 1; r < h - 1; r++) {
     for (let c = 1; c < w - 1; c++) {
@@ -197,7 +198,7 @@ function pruefeFoto(bmp) {
     }
   }
   const schaerfe = s2 / n - (s1 / n) ** 2;
-  if (schaerfe < 3 && !probleme.length) probleme.push("unscharf");
+  if (schaerfe < 20 && !probleme.length) probleme.push("unscharf");
   return { probleme, mittel, schaerfe };
 }
 
