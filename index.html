@@ -31,6 +31,17 @@
       <div class="actions"><button type="button" id="installieren-zu" class="btn klein">Verstanden</button></div>
     </section>
 
+    <section id="einrichten" class="card" hidden>
+      <h2>🖐️ Einmal einrichten (1 Minute)</h2>
+      <p>Zeig der App deine <strong>gesunde Haut</strong>: 10–15 Fotos von unauffälligen Stellen (Arm, Bein, Bauch, Gesicht, Hand –
+        ohne Flecken, Muttermale oder Ausschlag). Danach hält sie normale Haut nicht mehr für eine Krankheit.</p>
+      <p id="einrichten-meldung" class="ok" hidden></p>
+      <div class="actions">
+        <button type="button" id="einrichten-knopf" class="btn primary">Fotos auswählen</button>
+        <button type="button" id="einrichten-zu" class="btn">Später</button>
+      </div>
+    </section>
+
     <section id="laden" class="card" hidden>
       <p id="laden-text">Modell wird vorbereitet …</p>
       <div class="bar"><div id="laden-balken"></div></div>
@@ -65,16 +76,16 @@
       <p id="serie-hinweis" class="eigen" hidden></p>
       <p id="foto-warnung" class="warn" hidden></p>
       <p id="unsicher" class="warn" hidden>⚠️ <strong>Das Modell ist sich unsicher.</strong> Mehrere Möglichkeiten liegen nah beieinander, oder das Bild zeigt etwas, das es nicht kennt.</p>
+      <div id="gesund-box" hidden>
+        <button type="button" id="gesund-knopf" class="btn primary breit">✅ Stimmt nicht – das ist gesunde Haut</button>
+        <p class="hint">Nur tippen, wenn die Stelle wirklich unauffällig ist. Die App merkt sich das und erkennt ähnliche Fotos danach richtig.</p>
+      </div>
+      <p id="gesund-ok" class="ok" hidden></p>
+
       <h3>Die 5 wahrscheinlichsten</h3>
       <ol id="liste"></ol>
 
       <button type="button" id="weiteres-foto" class="btn">➕ Weiteres Foto derselben Stelle</button>
-
-      <div class="befund" id="gesund-box" hidden>
-        <button type="button" id="gesund-knopf" class="btn">✅ Das ist gesunde Haut – merken</button>
-        <p class="hint">Nur tippen, wenn die Stelle wirklich unauffällig ist. Die App lernt daraus und erkennt ähnliche Fotos danach richtig.</p>
-      </div>
-      <p id="gesund-ok" class="ok" hidden></p>
 
       <div class="befund">
         <button type="button" id="befund-auf" class="btn">🩺 Arzt-Befund zu diesem Foto eintragen</button>

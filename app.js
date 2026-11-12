@@ -455,7 +455,8 @@ async function merkeGesund() {
 
 /** Mehrere Fotos unauffälliger Haut auf einmal einlernen. Fotos mit Hautkrebs-Verdacht werden nie als gesund gespeichert. */
 async function lerneGesundeHaut(dateien) {
-  const meldung = $("einlernen-meldung");
+  const meldung = { set textContent(t) { $("einlernen-meldung").textContent = $("einrichten-meldung").textContent = t; } };
+  zeige("einrichten-meldung");
   let gelernt = 0, verdacht = 0, keinBild = 0, kaputt = 0;
   zeige("fehler", false);
   zeige("einlernen-meldung");
@@ -491,7 +492,15 @@ async function lerneGesundeHaut(dateien) {
     (kaputt ? ` ${kaputt} konnten nicht gelesen werden.` : "");
 }
 
+function zeigeEinrichten() {
+  let zu = false;
+  try { zu = localStorage.getItem("einrichten-zu") === "1"; } catch { /* privater Modus */ }
+  const n = befunde.filter((b) => b.label === "gesunde_haut").length;
+  zeige("einrichten", KENNT_GESUND() && !zu && (n < 5 || !$("einrichten-meldung").hidden));
+}
+
 function zeigeBefunde() {
+  zeigeEinrichten();
   const name = Object.fromEntries(meta.classes.map((c) => [c.key, c.name]));
   name.andere = "Etwas anderes";
   $("gelernt-zahl").textContent = befunde.length ? `(${befunde.length})` : "";
@@ -696,6 +705,12 @@ $("befund-auf").addEventListener("click", () => {
   befundFormular(true);
 });
 $("gesund-knopf").addEventListener("click", merkeGesund);
+$("einrichten-knopf").addEventListener("click", () => $("einlernen").click());
+$("einrichten-zu").addEventListener("click", () => {
+  try { localStorage.setItem("einrichten-zu", "1"); } catch { /* privater Modus */ }
+  zeige("einrichten-meldung", false);
+  zeigeEinrichten();
+});
 $("einlernen-knopf").addEventListener("click", () => $("einlernen").click());
 $("einlernen").addEventListener("change", (ev) => {
   const dateien = [...(ev.target.files || [])];
