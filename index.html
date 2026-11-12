@@ -87,6 +87,28 @@
       <h3>Die 5 wahrscheinlichsten</h3>
       <ol id="liste"></ol>
 
+      <details id="info" class="info" hidden>
+        <summary id="info-titel"></summary>
+        <p id="info-text"></p>
+        <p id="info-tun"></p>
+        <p class="hint">Allgemeine Information, keine Diagnose.</p>
+      </details>
+      <details id="abcde" class="info" hidden>
+        <summary>🔎 Fleck selbst prüfen (ABCDE-Regel)</summary>
+        <ul>
+          <li><strong>A – Asymmetrie:</strong> ungleichmäßige Form, nicht rund oder oval</li>
+          <li><strong>B – Begrenzung:</strong> unscharfer, ausgefranster oder zackiger Rand</li>
+          <li><strong>C – Colour (Farbe):</strong> mehrere Farbtöne in einem Fleck</li>
+          <li><strong>D – Durchmesser:</strong> größer als etwa 5 mm</li>
+          <li><strong>E – Entwicklung:</strong> neu, wächst, verändert sich, juckt oder blutet</li>
+        </ul>
+        <p>Trifft etwas davon zu – oder sieht ein Fleck ganz anders aus als deine übrigen –, zeig ihn einem Hautarzt.</p>
+      </details>
+      <p id="termin" class="hint" hidden>📞 <strong>Hautarzt-Termin:</strong> direkt in einer Praxis anrufen oder über den Terminservice der
+        Kassenärzte: Telefon <a href="tel:116117">116 117</a> oder <a href="https://www.116117.de" target="_blank" rel="noopener">116117.de</a>.</p>
+      <button type="button" id="teilen" class="btn">📤 Foto und Ergebnis für den Arzt teilen</button>
+      <p id="teilen-ok" class="ok" hidden></p>
+
       <button type="button" id="weiteres-foto" class="btn">➕ Weiteres Foto derselben Stelle</button>
 
       <div class="befund">

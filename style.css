@@ -151,3 +151,9 @@ footer strong { color: var(--text); }
 .verlauf-foto .btn { align-self: flex-start; margin-top: 4px; }
 #vorschau-bild { cursor: zoom-in; touch-action: manipulation; }
 #ganzes-foto { margin-top: 10px; }
+.info { margin-top: 12px; }
+.info summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+.info ul { margin: 6px 0; padding-left: 20px; }
+.info li { margin: 6px 0; }
+.info p { margin: 8px 0; }
+#teilen { margin-top: 12px; }

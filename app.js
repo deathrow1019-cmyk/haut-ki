@@ -2,6 +2,7 @@
 import * as ort from "./ort/ort.wasm.min.mjs";
 import * as lernen from "./lernen.js";
 import * as verlauf from "./verlauf.js";
+import { WISSEN } from "./wissen.js";
 
 ort.env.wasm.wasmPaths = new URL("./ort/", import.meta.url).href;
 // Mehrere Threads bräuchten Cross-Origin-Isolation, die statische Hosts nicht setzen können.
@@ -9,6 +10,7 @@ ort.env.wasm.numThreads = 1;
 
 const MODEL_URL = "modell/haut-ki.onnx";
 const UNSICHER = 0.35;     // Spitzenreiter darunter: Ergebnis gilt als unsicher
+const FAELLIG_TAGE = 28;   // Verlauf: nach so vielen Tagen an ein neues Vergleichsfoto erinnern
 const KLAR = 0.5;          // harmlose Krankheit darunter: „Kein klarer Befund“ statt Krankheitsname
 const GESUND_MIT = 0.15;   // … oder wenn „gesunde Haut“ mindestens so wahrscheinlich ist
 const UNKLAR_TEXT = "Das Modell erkennt hier nichts Eindeutiges. Sieht die Stelle für dich unauffällig aus, " +
@@ -345,8 +347,21 @@ function zeigeErgebnis(modellProbs, merkmale) {
   $("top-prozent").textContent = unklar ? `Am ehesten: ${top.name} · ${prozent(top.p)}` : `Am wahrscheinlichsten · ${prozent(top.p)}`;
   $("hinweis").innerHTML = (keinBild ? KEIN_BILD_TEXT : gesund ? GESUND_TEXT : unklar ? UNKLAR_TEXT : HINWEIS[risiko]) +
     (risiko === "hoch" && top.risiko !== "hoch" ? ` Die Hautkrebs-Arten zusammen kommen auf <strong>${prozent(krebs)}</strong>.` : "") +
-    (grauzone ? ` Hautkrebs ist nicht sicher ausgeschlossen (zusammen <strong>${prozent(krebs)}</strong>) – bitte beobachten und im Zweifel zeigen.` : "");
+    (grauzone ? ` Hautkrebs ist nicht sicher ausgeschlossen (zusammen <strong>${prozent(krebs)}</strong>) – bitte beobachten und im Zweifel zeigen.` : "") +
+    // Unklares Ergebnis beim ganzen Foto: oft ist die Stelle im Bild nur zu klein
+    ((unklar || top.p < UNSICHER) && !keinBild && !original ? " <strong>Tipp:</strong> oben im Foto auf die Stelle tippen – dann wird nur sie ausgewertet." : "");
   zeige("unsicher", top.p < UNSICHER);
+  const info = !keinBild && !gesund ? WISSEN[top.key] : null;
+  zeige("info", !!info);
+  $("info").open = false;
+  if (info) {
+    $("info-titel").textContent = `ℹ️ Was ist „${top.name.split(" (")[0]}“?`;
+    $("info-text").textContent = info.was;
+    $("info-tun").textContent = `Was tun? ${info.tun}`;
+  }
+  zeige("abcde", !keinBild && (top.gruppe === "Hautkrebs & Muttermale" || krebs >= warnung.schwelle_gelb));
+  zeige("termin", !keinBild && risiko !== "niedrig");
+  zeige("teilen-ok", false);
   // „Das ist gesunde Haut“ nur anbieten, wenn das Modell Hautkrebs nicht einmal in der Grauzone sieht
   zeige("gesund-box", KENNT_GESUND() && !gesund && krebsAnteil(modellProbs) < warnung.schwelle_gelb);
 
@@ -472,6 +487,32 @@ async function speichereBefund(ev) {
     ? "✓ Gespeichert. Für den Export vorgemerkt (die App kennt diese Krankheit noch nicht)."
     : "✓ Gespeichert. Ähnliche Fotos berücksichtigen diesen Befund ab sofort.";
   zeige("befund-ok");
+}
+
+// ---------- Für den Arzt teilen ----------
+
+async function teileErgebnis() {
+  if (!letzte?.ergebnis) return;
+  const zeilen = [...document.querySelectorAll("#liste li")].map((li) => `– ${li.querySelector("span").textContent}: ${li.querySelector("b").textContent}`);
+  const text = `Haut-KI (Lernprojekt, keine Diagnose) · ${new Date().toLocaleDateString("de-DE")}
+` +
+    `${$("top-name").textContent} · ${$("top-prozent").textContent}
+${zeilen.join(String.fromCharCode(10))}
+` +
+    `Hautkrebs-Arten zusammen: ${prozent(letzte.ergebnis.krebs)}`;
+  const name = `hautstelle-${new Date().toISOString().slice(0, 10)}.jpg`;
+  const file = new File([letzte.gross], name, { type: "image/jpeg" });
+  if (navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], text, title: "Haut-KI" }); return; } catch (e) { if (e.name === "AbortError") return; }
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(file); a.download = name;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  let kopiert = false;
+  try { await navigator.clipboard.writeText(text); kopiert = true; } catch { /* kein Zugriff auf die Zwischenablage */ }
+  $("teilen-ok").textContent = kopiert ? "✓ Foto gespeichert, Ergebnis-Text in die Zwischenablage kopiert." : "✓ Foto gespeichert.";
+  zeige("teilen-ok");
 }
 
 // ---------- Dazulernen: gesunde Haut (ein Tipp, ohne Arzt) ----------
@@ -665,7 +706,9 @@ async function speichereVerlauf(ev) {
 function zeigeVerlauf() {
   const name = Object.fromEntries(meta.classes.map((c) => [c.key, c.name]));
   const stellen = verlauf.gruppiere(eintraege);
-  $("verlauf-zahl").textContent = stellen.length ? `(${stellen.length})` : "";
+  const tageSeit = (fotos) => Math.floor((Date.now() - Math.max(...fotos.map((v) => +new Date(v.datum)))) / 864e5);
+  const faellig = stellen.filter((s) => tageSeit(s.fotos) >= FAELLIG_TAGE).length;
+  $("verlauf-zahl").textContent = stellen.length ? `(${stellen.length}${faellig ? ` · ${faellig} fällig` : ""})` : "";
   zeige("verlauf-leer", !stellen.length);
   zeige("verlauf-export", stellen.length > 0);
   $("verlauf-liste").replaceChildren(...stellen.map(({ stelle, fotos }) => {
@@ -674,6 +717,12 @@ function zeigeVerlauf() {
     const titel = document.createElement("h3");
     titel.textContent = `${stelle} · ${fotos.length} ${fotos.length === 1 ? "Foto" : "Fotos"}`;
     box.append(titel);
+    if (tageSeit(fotos) >= FAELLIG_TAGE) {
+      const p = document.createElement("p");
+      p.className = "hint";
+      p.textContent = `📅 Letztes Foto vor ${Math.round(tageSeit(fotos) / 7)} Wochen – Zeit für ein neues Vergleichsfoto.`;
+      box.append(p);
+    }
     const art = verlauf.veraenderung(fotos, warnung.schwelle_rot);
     if (art) {
       const p = document.createElement("p");
@@ -757,6 +806,7 @@ $("befund-auf").addEventListener("click", () => {
 $("vorschau-bild").addEventListener("click", schneideAus);
 $("ganzes-foto").addEventListener("click", () => { if (original) { anhaengen = false; analysiere(original); } });
 $("gesund-knopf").addEventListener("click", merkeGesund);
+$("teilen").addEventListener("click", teileErgebnis);
 $("einrichten-knopf").addEventListener("click", () => $("einlernen").click());
 $("einrichten-zu").addEventListener("click", () => {
   try { localStorage.setItem("einrichten-zu", "1"); } catch { /* privater Modus */ }
