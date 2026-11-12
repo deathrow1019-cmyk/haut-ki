@@ -9,6 +9,10 @@ ort.env.wasm.numThreads = 1;
 
 const MODEL_URL = "modell/haut-ki.onnx";
 const UNSICHER = 0.35;     // Spitzenreiter darunter: Ergebnis gilt als unsicher
+const KLAR = 0.5;          // harmlose Krankheit darunter: „Kein klarer Befund“ statt Krankheitsname
+const GESUND_MIT = 0.15;   // … oder wenn „gesunde Haut“ mindestens so wahrscheinlich ist
+const UNKLAR_TEXT = "Das Modell erkennt hier nichts Eindeutiges. Sieht die Stelle für dich unauffällig aus, " +
+  "ist das sehr wahrscheinlich gesunde Haut. Wenn sie juckt, schmerzt, sich verändert oder dir Sorgen macht, zeig sie einem Arzt.";
 // Hautkrebs-Klassen zusammen: ab "rot" rote Ampel, ab "gelb" mindestens „abklären“. Die Werte kommen mit dem Modell
 // (modell/warnung.json, gemessen an Testbildern); das hier sind nur die Ersatzwerte, falls die Datei fehlt.
 let warnung = { schwelle_rot: 0.25, schwelle_gelb: 0.10 };
@@ -281,9 +285,13 @@ function zeigeErgebnis(modellProbs, merkmale) {
   const keinBild = top.key === "kein_hautbild" && krebs < warnung.schwelle_gelb;
   const gesund = top.key === "gesunde_haut" && risiko === "niedrig";
   $("ampel").className = keinBild ? "ampel" : `ampel ${risiko}`;
-  $("top-name").textContent = top.name;
-  $("top-prozent").textContent = `Am wahrscheinlichsten · ${prozent(top.p)}`;
-  $("hinweis").innerHTML = (keinBild ? KEIN_BILD_TEXT : gesund ? GESUND_TEXT : HINWEIS[risiko]) +
+  // Harmlose Krankheit nur schwach erkannt (oder „gesunde Haut“ spielt mit) -> keinen Krankheitsnamen als Ergebnis zeigen
+  const pGesund = probs[meta.classes.findIndex((c) => c.key === "gesunde_haut")] || 0;
+  const unklar = !keinBild && !gesund && risiko === "niedrig" && top.key !== "kein_hautbild" &&
+    (top.p < KLAR || pGesund >= GESUND_MIT);
+  $("top-name").textContent = unklar ? "Kein klarer Befund" : top.name;
+  $("top-prozent").textContent = unklar ? `Am ehesten: ${top.name} · ${prozent(top.p)}` : `Am wahrscheinlichsten · ${prozent(top.p)}`;
+  $("hinweis").innerHTML = (keinBild ? KEIN_BILD_TEXT : gesund ? GESUND_TEXT : unklar ? UNKLAR_TEXT : HINWEIS[risiko]) +
     (risiko === "hoch" && top.risiko !== "hoch" ? ` Die Hautkrebs-Arten zusammen kommen auf <strong>${prozent(krebs)}</strong>.` : "") +
     (grauzone ? ` Hautkrebs ist nicht sicher ausgeschlossen (zusammen <strong>${prozent(krebs)}</strong>) – bitte beobachten und im Zweifel zeigen.` : "");
   zeige("unsicher", top.p < UNSICHER);
