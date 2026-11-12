@@ -149,3 +149,5 @@ footer strong { color: var(--text); }
 .verlauf-foto span { color: var(--muted); overflow-wrap: anywhere; }
 .verlauf-foto span.rot { color: var(--red); font-weight: 600; }
 .verlauf-foto .btn { align-self: flex-start; margin-top: 4px; }
+#vorschau-bild { cursor: zoom-in; touch-action: manipulation; }
+#ganzes-foto { margin-top: 10px; }

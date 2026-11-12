@@ -209,7 +209,56 @@ function softmax(row) {
   return e.map((v) => v / s);
 }
 
-async function analysiere(file) {
+// ---------- Ausschnitt: auf die Stelle tippen ----------
+// Das Modell sieht nur 256 px. Ist die Stelle im Foto klein, geht sie unter – der Ausschnitt nutzt die echten Pixel des Originals.
+
+let aktuelleDatei = null;  // was gerade in der Vorschau steht (ganzes Foto oder Ausschnitt)
+let original = null;       // das ganze Foto, solange ein Ausschnitt gezeigt wird
+const AUSSCHNITT = 0.4;    // Kantenlänge des Ausschnitts, Anteil der kürzeren Bildseite
+const AUSSCHNITT_MIN = 200; // kleiner lohnt nicht: dann fehlen echte Details
+
+async function schneideAus(ev) {
+  const img = $("vorschau-bild");
+  if (!aktuelleDatei || !img.naturalWidth || $("pick").classList.contains("busy")) return;
+  const r = img.getBoundingClientRect();
+  const k = Math.min(r.width / img.naturalWidth, r.height / img.naturalHeight);   // object-fit: contain
+  const bw = img.naturalWidth * k, bh = img.naturalHeight * k;
+  const fx = (ev.clientX - r.left - (r.width - bw) / 2) / bw, fy = (ev.clientY - r.top - (r.height - bh) / 2) / bh;
+  if (fx < 0 || fx > 1 || fy < 0 || fy > 1) return;
+  try {
+    const bmp = await dekodiere(aktuelleDatei);
+    const seite = Math.round(Math.min(bmp.width, bmp.height) * AUSSCHNITT);
+    if (seite < AUSSCHNITT_MIN) {
+      bmp.close?.();
+      $("zoom-hinweis").textContent = "Näher geht es nicht – mehr Details hat das Foto nicht. Für ein genaueres Ergebnis näher herangehen und neu fotografieren.";
+      return;
+    }
+    const x = Math.max(0, Math.min(bmp.width - seite, Math.round(fx * bmp.width - seite / 2)));
+    const y = Math.max(0, Math.min(bmp.height - seite, Math.round(fy * bmp.height - seite / 2)));
+    const c = document.createElement("canvas");
+    c.width = c.height = Math.min(seite, 1024);
+    const g = c.getContext("2d");
+    g.imageSmoothingQuality = "high";
+    g.drawImage(bmp, x, y, seite, seite, 0, 0, c.width, c.height);
+    bmp.close?.();
+    const blob = await new Promise((ok) => c.toBlob(ok, "image/jpeg", 0.92));
+    if (!blob) throw new Error("Ausschnitt konnte nicht erstellt werden");
+    const ganz = original || aktuelleDatei;
+    anhaengen = false;
+    await analysiere(new File([blob], "ausschnitt.jpg", { type: "image/jpeg" }), ganz);
+  } catch (e) {
+    console.error(e);
+    fehler(`Der Ausschnitt konnte nicht erstellt werden (${e.message || e}).`);
+  }
+}
+
+async function analysiere(file, ganzesFoto = null) {
+  aktuelleDatei = file;
+  original = ganzesFoto;
+  zeige("ganzes-foto", !!original);
+  $("zoom-hinweis").textContent = original
+    ? "🔍 Ausschnitt. Noch einmal tippen vergrößert weiter."
+    : "👆 Auf die Stelle tippen, um sie zu vergrößern und nur diesen Ausschnitt auszuwerten.";
   zeige("fehler", false);
   zeige("ergebnis", false);
   if (vorschauUrl) URL.revokeObjectURL(vorschauUrl);
@@ -705,6 +754,8 @@ $("befund-auf").addEventListener("click", () => {
   $("befund-arzt").checked = false;
   befundFormular(true);
 });
+$("vorschau-bild").addEventListener("click", schneideAus);
+$("ganzes-foto").addEventListener("click", () => { if (original) { anhaengen = false; analysiere(original); } });
 $("gesund-knopf").addEventListener("click", merkeGesund);
 $("einrichten-knopf").addEventListener("click", () => $("einlernen").click());
 $("einrichten-zu").addEventListener("click", () => {
