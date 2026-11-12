@@ -116,7 +116,7 @@ details[open] summary { margin-bottom: 0; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn.danger { color: var(--red); }
 .btn.klein { padding: 6px 10px; font-size: 13px; font-weight: 500; }
-#befund-auf { width: 100%; }
+#befund-auf, #verlauf-auf { width: 100%; }
 form label { display: block; font-size: 14px; color: var(--muted); margin: 12px 0 0; }
 form select, form input:not([type="checkbox"]) {
   display: block; width: 100%; margin-top: 4px; font: inherit; font-size: 16px; color: var(--text);
@@ -137,3 +137,15 @@ details td { padding: 4px 0; border-top: 1px solid var(--line); }
 details td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
 footer { color: var(--muted); font-size: 13px; padding: 4px 4px 0; }
 footer strong { color: var(--text); }
+
+/* Verlauf: Fotos einer Stelle nebeneinander, seitlich wischbar (die Seite selbst wird nicht breiter) */
+.verlauf-stelle { margin-top: 6px; padding-top: 2px; border-top: 1px solid var(--line); }
+.verlauf-stelle:first-child { border-top: 0; }
+.verlauf-stelle h3 { color: var(--text); overflow-wrap: anywhere; }
+.verlauf-reihe { display: flex; gap: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 4px 0 8px; }
+.verlauf-foto { flex: none; width: 150px; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.verlauf-foto img { width: 150px; height: 150px; object-fit: cover; border-radius: 12px; background: var(--bg); }
+.verlauf-foto strong { font-size: 14px; margin-top: 4px; }
+.verlauf-foto span { color: var(--muted); overflow-wrap: anywhere; }
+.verlauf-foto span.rot { color: var(--red); font-weight: 600; }
+.verlauf-foto .btn { align-self: flex-start; margin-top: 4px; }

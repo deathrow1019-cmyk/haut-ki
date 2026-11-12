@@ -89,6 +89,25 @@
         </form>
         <p id="befund-ok" class="ok" hidden></p>
       </div>
+
+      <div class="befund">
+        <button type="button" id="verlauf-auf" class="btn">📅 Stelle beobachten: Foto im Verlauf speichern</button>
+        <form id="verlauf-form" hidden>
+          <p class="hint">Für Muttermale und Stellen, die du im Auge behalten willst: alle paar Wochen ein Foto speichern
+            und unten im „Verlauf“ vergleichen. Alles bleibt auf diesem iPhone.</p>
+          <label>Stelle
+            <select id="verlauf-stelle"></select>
+          </label>
+          <label id="verlauf-neu-feld">Name der neuen Stelle
+            <input id="verlauf-name" maxlength="40" placeholder="z. B. Muttermal linker Unterarm">
+          </label>
+          <div class="actions">
+            <button type="submit" class="btn primary">Speichern</button>
+            <button type="button" id="verlauf-abbruch" class="btn">Abbrechen</button>
+          </div>
+        </form>
+        <p id="verlauf-ok" class="ok" hidden></p>
+      </div>
     </section>
 
     <section id="fehler" class="card warn" hidden></section>
@@ -105,6 +124,14 @@
       </div>
       <p class="hint">Der Export erstellt eine Datei mit Fotos und Befunden, z. B. zum Sichern in „Dateien“ oder
         Google Drive. Damit lernt beim nächsten Training auch das große Modell dazu.</p>
+    </details>
+
+    <details class="card" id="verlauf">
+      <summary>📅 Verlauf <span id="verlauf-zahl"></span></summary>
+      <p class="hint">Fotos von Stellen, die du beobachtest – von alt nach neu. Achte selbst auf Veränderungen:
+        größer, dunkler, mehrfarbig, unregelmäßiger Rand, Jucken oder Bluten gehören zum Hautarzt, egal was die App sagt.</p>
+      <p id="verlauf-leer" class="hint">Noch nichts gespeichert. Nach einer Analyse: „Stelle beobachten“.</p>
+      <div id="verlauf-liste"></div>
     </details>
 
     <details class="card">

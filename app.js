@@ -1,6 +1,7 @@
 // Haut-KI auf dem iPhone: Modell läuft lokal per onnxruntime-web (WebAssembly), kein Foto verlässt das Gerät.
 import * as ort from "./ort/ort.wasm.min.mjs";
 import * as lernen from "./lernen.js";
+import * as verlauf from "./verlauf.js";
 
 ort.env.wasm.wasmPaths = new URL("./ort/", import.meta.url).href;
 // Mehrere Threads bräuchten Cross-Origin-Isolation, die statische Hosts nicht setzen können.
@@ -23,6 +24,7 @@ const QUELLE = { isic: "Dermatoskop-Aufnahmen", fitz: "Klinische Fotos", scin: "
 const $ = (id) => document.getElementById(id);
 let meta, session;
 let befunde = [];   // eigene Arzt-Befunde (IndexedDB)
+let eintraege = []; // Verlauf: gespeicherte Fotos beobachteter Stellen (IndexedDB)
 let vorschauUrl = null;
 let letzte = null;  // letzte Analyse: Merkmale + kleines Bild, falls ein Befund dazu eingetragen wird
 let serie = null;   // mehrere Fotos derselben Stelle: { summe: Wahrscheinlichkeiten aufsummiert, n: Anzahl }
@@ -93,6 +95,7 @@ async function start() {
   session = await ort.InferenceSession.create(bytes, { executionProviders: ["wasm"] });
   zeige("laden", false);
   await ladeBefunde();
+  await ladeVerlauf();
   $("status").textContent = navigator.serviceWorker?.controller ? "✓ Offline bereit" : "";
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
 }
@@ -209,7 +212,7 @@ async function analysiere(file) {
     const bmp = await dekodiere(file);
     const foto = pruefeFoto(bmp);
     let { probs, merkmale } = await rechne(bmp);
-    letzte = { merkmale, bild: await lernen.kleinesBild(bmp) };
+    letzte = { merkmale, bild: await lernen.kleinesBild(bmp), gross: await lernen.kleinesBild(bmp, 640) };
     bmp.close?.();
     // Mehrere Fotos derselben Stelle: Wahrscheinlichkeiten mitteln (ein einzelnes Foto kann täuschen)
     if (anhaengen && serie && serie.summe.length === probs.length) {
@@ -265,6 +268,8 @@ function zeigeErgebnis(modellProbs, merkmale) {
       ` einer sehr ähnlichen Stelle (Anteil ${prozent(eigen.alpha)}).`;
   }
   befundFormular(false);
+  verlaufFormular(false);
+  if (letzte) letzte.ergebnis = { top: top.key, p: top.p, krebs };
 
   $("ampel").className = `ampel ${risiko}`;
   $("top-name").textContent = top.name;
@@ -437,6 +442,145 @@ function zeigeBefunde() {
     return li;
   }));
 }
+
+// ---------- Verlauf: dieselbe Stelle über die Zeit beobachten ----------
+
+async function ladeVerlauf() {
+  try {
+    eintraege = await verlauf.alle();
+  } catch (err) {
+    console.warn("Verlauf nicht lesbar:", err);
+    eintraege = [];
+  }
+  // Neues Modell: alte Fotos neu einschätzen, sonst wären die Werte im Verlauf nicht vergleichbar
+  for (const v of eintraege.filter((x) => x.modell !== meta.model_version && x.bild)) {
+    try {
+      const bmp = await createImageBitmap(v.bild);
+      const { probs, merkmale } = await rechne(bmp);
+      bmp.close?.();
+      const i = probs.indexOf(Math.max(...probs));
+      Object.assign(v, { merkmale, top: meta.classes[i].key, p: probs[i], krebs: krebsAnteil(probs), modell: meta.model_version });
+      await verlauf.speichere(v);
+    } catch (err) {
+      console.warn("Verlaufs-Foto nicht neu berechnet:", err);
+    }
+  }
+  zeigeVerlauf();
+}
+
+function verlaufFormular(offen) {
+  zeige("verlauf-form", offen);
+  zeige("verlauf-auf", !offen);
+  if (!offen) zeige("verlauf-ok", false);
+}
+
+function oeffneVerlaufFormular() {
+  if (!letzte) return;
+  const sel = $("verlauf-stelle");
+  const stellen = verlauf.gruppiere(eintraege);
+  sel.replaceChildren(...stellen.map((s) => new Option(`${s.stelle} (${s.fotos.length} ${s.fotos.length === 1 ? "Foto" : "Fotos"})`, s.stelle)),
+    new Option("➕ Neue Stelle", ""));
+  // Sieht das Foto einer gespeicherten Stelle sehr ähnlich, wird sie vorgeschlagen
+  sel.value = verlauf.passendeStelle(letzte.merkmale, eintraege, meta.model_version) ?? "";
+  $("verlauf-name").value = "";
+  zeige("verlauf-neu-feld", sel.value === "");
+  verlaufFormular(true);
+}
+
+async function speichereVerlauf(ev) {
+  ev.preventDefault();
+  if (!letzte?.ergebnis) return;
+  const stelle = $("verlauf-stelle").value || $("verlauf-name").value.trim();
+  if (!stelle) { $("verlauf-name").focus(); return; }
+  const v = {
+    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    datum: new Date().toISOString(),
+    stelle,
+    bild: letzte.gross,
+    merkmale: letzte.merkmale,
+    modell: meta.model_version,
+    ...letzte.ergebnis,
+  };
+  try {
+    await verlauf.speichere(v);
+  } catch (err) {
+    fehler(`Foto konnte nicht im Verlauf gespeichert werden (${err?.message || err || "unbekannter Fehler"}).`);
+    return;
+  }
+  eintraege.push(v);
+  zeigeVerlauf();
+  zeige("verlauf-form", false);
+  const n = eintraege.filter((x) => x.stelle === stelle).length;
+  $("verlauf-ok").textContent = `✓ Gespeichert unter „${stelle}“ (${n}. Foto). Zum Vergleichen unten „Verlauf“ öffnen.`;
+  zeige("verlauf-ok");
+}
+
+function zeigeVerlauf() {
+  const name = Object.fromEntries(meta.classes.map((c) => [c.key, c.name]));
+  const stellen = verlauf.gruppiere(eintraege);
+  $("verlauf-zahl").textContent = stellen.length ? `(${stellen.length})` : "";
+  zeige("verlauf-leer", !stellen.length);
+  $("verlauf-liste").replaceChildren(...stellen.map(({ stelle, fotos }) => {
+    const box = document.createElement("div");
+    box.className = "verlauf-stelle";
+    const titel = document.createElement("h3");
+    titel.textContent = `${stelle} · ${fotos.length} ${fotos.length === 1 ? "Foto" : "Fotos"}`;
+    box.append(titel);
+    const art = verlauf.veraenderung(fotos, warnung.schwelle_rot);
+    if (art) {
+      const p = document.createElement("p");
+      p.className = "warn";
+      p.innerHTML = art === "rot"
+        ? "🔴 <strong>Beim neuesten Foto erscheint die Hautkrebs-Warnung, vorher nicht.</strong> Bitte die Stelle einem Hautarzt zeigen."
+        : "⚠️ <strong>Die Einschätzung ist schlechter als bei einem früheren Foto.</strong> Das kann auch am Foto liegen (Licht, Abstand) – " +
+          "noch einmal aufnehmen und im Zweifel einem Hautarzt zeigen.";
+      box.append(p);
+    }
+    const reihe = document.createElement("div");
+    reihe.className = "verlauf-reihe";
+    reihe.append(...fotos.map((v) => {
+      const karte = document.createElement("div");
+      karte.className = "verlauf-foto";
+      const img = document.createElement("img");
+      img.alt = `${stelle}, ${new Date(v.datum).toLocaleDateString("de-DE")}`;
+      if (v.bild) {
+        img.src = URL.createObjectURL(v.bild);
+        img.onload = img.onerror = () => URL.revokeObjectURL(img.src);
+      }
+      const datum = document.createElement("strong");
+      datum.textContent = new Date(v.datum).toLocaleDateString("de-DE");
+      const top = document.createElement("span");
+      top.textContent = `${name[v.top] || v.top} · ${prozent(v.p)}`;
+      const krebs = document.createElement("span");
+      krebs.textContent = `Hautkrebs-Anteil ${prozent(v.krebs)}`;
+      if (v.krebs >= warnung.schwelle_rot) krebs.className = "rot";
+      const weg = document.createElement("button");
+      weg.className = "btn klein";
+      weg.textContent = "Löschen";
+      weg.addEventListener("click", async () => {
+        if (!confirm(`Foto vom ${datum.textContent} aus „${stelle}“ löschen?`)) return;
+        try {
+          await verlauf.loesche(v.id);
+        } catch (err) {
+          fehler(`Foto konnte nicht gelöscht werden (${err?.message || err}).`);
+          return;
+        }
+        eintraege = eintraege.filter((x) => x.id !== v.id);
+        zeigeVerlauf();
+      });
+      karte.append(img, datum, top, krebs, weg);
+      return karte;
+    }));
+    box.append(reihe);
+    requestAnimationFrame(() => { reihe.scrollLeft = reihe.scrollWidth; });   // neuestes Foto sichtbar
+    return box;
+  }));
+}
+
+$("verlauf-auf").addEventListener("click", oeffneVerlaufFormular);
+$("verlauf-stelle").addEventListener("change", (ev) => zeige("verlauf-neu-feld", ev.target.value === ""));
+$("verlauf-abbruch").addEventListener("click", () => verlaufFormular(false));
+$("verlauf-form").addEventListener("submit", speichereVerlauf);
 
 $("befund-auf").addEventListener("click", () => {
   fuelleAuswahl();
