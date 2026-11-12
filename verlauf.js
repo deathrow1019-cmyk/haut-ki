@@ -64,3 +64,48 @@ export function veraenderung(fotos, schwelleRot) {
   if (neu - Math.min(...frueher) >= ANSTIEG) return "gestiegen";
   return null;
 }
+
+const alsDataUrl = (blob) => new Promise((r) => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(blob); });
+
+function ausDataUrl(url) {
+  const [kopf, daten] = url.split(",", 2);
+  const roh = atob(daten), bytes = new Uint8Array(roh.length);
+  for (let i = 0; i < roh.length; i++) bytes[i] = roh.charCodeAt(i);
+  return new Blob([bytes], { type: /data:([^;]+)/.exec(kopf)?.[1] || "image/jpeg" });
+}
+
+/** Sicherungsdatei mit allen Verlaufs-Fotos. Über das Teilen-Menü (iPhone: „In Dateien sichern“) oder als Download. */
+export async function exportiere(eintraege) {
+  const daten = {
+    app: "haut-ki", typ: "verlauf", format: 1, exportiert: new Date().toISOString(),
+    eintraege: await Promise.all(eintraege.map(async (e) => ({
+      id: e.id, datum: e.datum, stelle: e.stelle, top: e.top, p: e.p, krebs: e.krebs, bild: e.bild ? await alsDataUrl(e.bild) : "",
+    }))),
+  };
+  const name = `haut-ki-verlauf-${new Date().toISOString().slice(0, 10)}.json`;
+  const file = new File([JSON.stringify(daten)], name, { type: "application/json" });
+  if (navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: "Haut-KI Verlauf" }); return; } catch (e) { if (e.name === "AbortError") return; }
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(file); a.download = name;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+/** Liest eine Sicherungsdatei ein. Vorhandene Fotos (gleiche Kennung) werden nicht doppelt angelegt. Gibt die Anzahl zurück.
+ *  Die Einschätzung wird danach mit dem aktuellen Modell neu berechnet (modell bleibt leer). */
+export async function importiere(file) {
+  const daten = JSON.parse(await file.text());
+  if (daten?.app !== "haut-ki" || daten.typ !== "verlauf" || !Array.isArray(daten.eintraege)) {
+    throw new Error("das ist keine Verlaufs-Sicherung von Haut-KI");
+  }
+  let n = 0;
+  for (const e of daten.eintraege) {
+    if (!e?.id || !e.stelle || !e.datum || typeof e.bild !== "string" || !e.bild.startsWith("data:image/")) continue;
+    await speichere({ id: String(e.id), datum: String(e.datum), stelle: String(e.stelle).slice(0, 40), bild: ausDataUrl(e.bild),
+      top: String(e.top || ""), p: Number(e.p) || 0, krebs: Number(e.krebs) || 0, merkmale: null, modell: "" });
+    n++;
+  }
+  return n;
+}

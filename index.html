@@ -132,6 +132,14 @@
         größer, dunkler, mehrfarbig, unregelmäßiger Rand, Jucken oder Bluten gehören zum Hautarzt, egal was die App sagt.</p>
       <p id="verlauf-leer" class="hint">Noch nichts gespeichert. Nach einer Analyse: „Stelle beobachten“.</p>
       <div id="verlauf-liste"></div>
+      <div class="actions">
+        <button type="button" id="verlauf-export" class="btn" hidden>Verlauf sichern</button>
+        <button type="button" id="verlauf-import-knopf" class="btn">Sicherung einlesen</button>
+        <input id="verlauf-import" type="file" accept="application/json,.json" hidden>
+      </div>
+      <p id="verlauf-meldung" class="ok" hidden></p>
+      <p class="hint">Die Fotos liegen nur auf diesem iPhone. „Verlauf sichern“ erstellt eine Datei (z. B. für „Dateien“
+        oder iCloud), die du später oder auf einem neuen Gerät wieder einlesen kannst.</p>
     </details>
 
     <details class="card">

@@ -18,8 +18,14 @@ const HINWEIS = {
   mittel: "🟠 <strong>Sollte ärztlich abgeklärt werden</strong>, z. B. weil es eine Vorstufe, ansteckend oder behandlungsbedürftig sein kann.",
   niedrig: "🟢 <strong>Meist harmlos oder gut behandelbar.</strong> Bei Beschwerden, Veränderung oder Unsicherheit trotzdem zum Arzt.",
 };
+// Ab Modell v8 kennt die App auch „kein Befund“: gesunde Haut und Fotos, die gar keine Haut zeigen
+const GESUND_TEXT = "🟢 <strong>Keine auffällige Hautveränderung erkannt.</strong> Sehr kleine oder blasse Stellen kann die App " +
+  "übersehen – bei Beschwerden oder wenn sich etwas verändert, trotzdem zum Arzt.";
+const KEIN_BILD_TEXT = "📷 <strong>Das sieht nicht nach einer Hautstelle aus.</strong> Bitte die Stelle nah, scharf und gut " +
+  "beleuchtet fotografieren, sodass sie in der Bildmitte liegt.";
 const QUELLE = { isic: "Dermatoskop-Aufnahmen", fitz: "Klinische Fotos", scin: "Handyfotos (SCIN)", pad: "Handyfotos (PAD-UFES)", mednode: "Klinische Fotos (MED-NODE)",
-  dermnet: "Klinische Fotos (DermNet)", milk: "Nahaufnahmen (MILK10k)", milkderm: "Dermatoskop-Aufnahmen (MILK10k)", eigene: "Eigene Befunde" };
+  dermnet: "Klinische Fotos (DermNet)", milk: "Nahaufnahmen (MILK10k)", milkderm: "Dermatoskop-Aufnahmen (MILK10k)", eigene: "Eigene Befunde",
+  gesund: "Fotos gesunder Haut", coco: "Alltagsfotos (keine Haut)" };
 
 const $ = (id) => document.getElementById(id);
 let meta, session;
@@ -271,10 +277,13 @@ function zeigeErgebnis(modellProbs, merkmale) {
   verlaufFormular(false);
   if (letzte) letzte.ergebnis = { top: top.key, p: top.p, krebs };
 
-  $("ampel").className = `ampel ${risiko}`;
+  // „Kein Befund“ nur, wenn Hautkrebs auch nicht in der Grauzone liegt – die Warnung geht immer vor
+  const keinBild = top.key === "kein_hautbild" && krebs < warnung.schwelle_gelb;
+  const gesund = top.key === "gesunde_haut" && risiko === "niedrig";
+  $("ampel").className = keinBild ? "ampel" : `ampel ${risiko}`;
   $("top-name").textContent = top.name;
   $("top-prozent").textContent = `Am wahrscheinlichsten · ${prozent(top.p)}`;
-  $("hinweis").innerHTML = HINWEIS[risiko] +
+  $("hinweis").innerHTML = (keinBild ? KEIN_BILD_TEXT : gesund ? GESUND_TEXT : HINWEIS[risiko]) +
     (risiko === "hoch" && top.risiko !== "hoch" ? ` Die Hautkrebs-Arten zusammen kommen auf <strong>${prozent(krebs)}</strong>.` : "") +
     (grauzone ? ` Hautkrebs ist nicht sicher ausgeschlossen (zusammen <strong>${prozent(krebs)}</strong>) – bitte beobachten und im Zweifel zeigen.` : "");
   zeige("unsicher", top.p < UNSICHER);
@@ -365,7 +374,7 @@ function fuelleAuswahl() {
   const leer = new Option("Bitte wählen …", "");
   leer.disabled = true; leer.selected = true;
   const gruppen = {};
-  for (const c of meta.classes) (gruppen[c.gruppe] ||= []).push(c);
+  for (const c of meta.classes) if (c.key !== "kein_hautbild") (gruppen[c.gruppe] ||= []).push(c);
   sel.replaceChildren(leer, ...Object.entries(gruppen).map(([g, cs]) => {
     const og = document.createElement("optgroup");
     og.label = g;
@@ -520,6 +529,7 @@ function zeigeVerlauf() {
   const stellen = verlauf.gruppiere(eintraege);
   $("verlauf-zahl").textContent = stellen.length ? `(${stellen.length})` : "";
   zeige("verlauf-leer", !stellen.length);
+  zeige("verlauf-export", stellen.length > 0);
   $("verlauf-liste").replaceChildren(...stellen.map(({ stelle, fotos }) => {
     const box = document.createElement("div");
     box.className = "verlauf-stelle";
@@ -578,6 +588,24 @@ function zeigeVerlauf() {
 }
 
 $("verlauf-auf").addEventListener("click", oeffneVerlaufFormular);
+$("verlauf-export").addEventListener("click", () => verlauf.exportiere(eintraege)
+  .catch((err) => fehler(`Sichern fehlgeschlagen (${err.message || err}).`)));
+$("verlauf-import-knopf").addEventListener("click", () => $("verlauf-import").click());
+$("verlauf-import").addEventListener("change", async (ev) => {
+  const f = ev.target.files?.[0];
+  ev.target.value = "";
+  if (!f) return;
+  zeige("fehler", false);
+  try {
+    if (!session) await bereit;
+    const n = await verlauf.importiere(f);
+    await ladeVerlauf();   // rechnet die eingelesenen Fotos mit dem aktuellen Modell neu durch
+    $("verlauf-meldung").textContent = `✓ ${n} ${n === 1 ? "Foto" : "Fotos"} eingelesen.`;
+    zeige("verlauf-meldung");
+  } catch (err) {
+    fehler(`Die Sicherung konnte nicht eingelesen werden (${err?.message || err}).`);
+  }
+});
 $("verlauf-stelle").addEventListener("change", (ev) => zeige("verlauf-neu-feld", ev.target.value === ""));
 $("verlauf-abbruch").addEventListener("click", () => verlaufFormular(false));
 $("verlauf-form").addEventListener("submit", speichereVerlauf);
