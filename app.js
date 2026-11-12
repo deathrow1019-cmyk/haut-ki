@@ -224,6 +224,7 @@ async function analysiere(file) {
     let { probs, merkmale } = await rechne(bmp);
     letzte = { merkmale, bild: await lernen.kleinesBild(bmp), gross: await lernen.kleinesBild(bmp, 640) };
     bmp.close?.();
+    zeige("gesund-ok", false);
     // Mehrere Fotos derselben Stelle: Wahrscheinlichkeiten mitteln (ein einzelnes Foto kann täuschen)
     if (anhaengen && serie && serie.summe.length === probs.length) {
       serie = { summe: serie.summe.map((v, i) => v + probs[i]), n: serie.n + 1 };
@@ -232,6 +233,7 @@ async function analysiere(file) {
     }
     anhaengen = false;
     probs = serie.summe.map((v) => v / serie.n);
+    letzte.modellProbs = probs;
     zeigeErgebnis(probs, merkmale);
     $("serie-hinweis").hidden = serie.n < 2;
     $("serie-hinweis").textContent = `📷 Mittel aus ${serie.n} Fotos derselben Stelle.`;
@@ -295,6 +297,8 @@ function zeigeErgebnis(modellProbs, merkmale) {
     (risiko === "hoch" && top.risiko !== "hoch" ? ` Die Hautkrebs-Arten zusammen kommen auf <strong>${prozent(krebs)}</strong>.` : "") +
     (grauzone ? ` Hautkrebs ist nicht sicher ausgeschlossen (zusammen <strong>${prozent(krebs)}</strong>) – bitte beobachten und im Zweifel zeigen.` : "");
   zeige("unsicher", top.p < UNSICHER);
+  // „Das ist gesunde Haut“ nur anbieten, wenn das Modell Hautkrebs nicht einmal in der Grauzone sieht
+  zeige("gesund-box", KENNT_GESUND() && !gesund && krebsAnteil(modellProbs) < warnung.schwelle_gelb);
 
   const liste = $("liste");
   liste.replaceChildren(...ranked.slice(0, 5).map((c) => {
@@ -418,6 +422,73 @@ async function speichereBefund(ev) {
     ? "✓ Gespeichert. Für den Export vorgemerkt (die App kennt diese Krankheit noch nicht)."
     : "✓ Gespeichert. Ähnliche Fotos berücksichtigen diesen Befund ab sofort.";
   zeige("befund-ok");
+}
+
+// ---------- Dazulernen: gesunde Haut (ein Tipp, ohne Arzt) ----------
+
+const KENNT_GESUND = () => meta.classes.some((c) => c.key === "gesunde_haut");
+
+function gesundBefund(merkmale, bild) {
+  return {
+    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+    datum: new Date().toISOString(), label: "gesunde_haut", notiz: "selbst als gesund markiert",
+    merkmale, bild, modell: meta.model_version,
+  };
+}
+
+async function merkeGesund() {
+  if (!letzte?.modellProbs) return;
+  const b = gesundBefund(letzte.merkmale, letzte.bild);
+  try {
+    await lernen.speichere(b);
+  } catch (e) {
+    fehler(`Konnte nicht gespeichert werden (${e?.message || e || "unbekannter Fehler"}).`);
+    return;
+  }
+  befunde.push(b);
+  zeigeBefunde();
+  zeigeErgebnis(letzte.modellProbs, letzte.merkmale);
+  zeige("gesund-box", false);
+  $("gesund-ok").textContent = "✓ Gemerkt. Ähnliche Fotos gelten ab sofort als gesunde Haut (unter „Dazugelernt“ wieder löschbar).";
+  zeige("gesund-ok");
+}
+
+/** Mehrere Fotos unauffälliger Haut auf einmal einlernen. Fotos mit Hautkrebs-Verdacht werden nie als gesund gespeichert. */
+async function lerneGesundeHaut(dateien) {
+  const meldung = $("einlernen-meldung");
+  let gelernt = 0, verdacht = 0, keinBild = 0, kaputt = 0;
+  zeige("fehler", false);
+  zeige("einlernen-meldung");
+  $("einlernen-knopf").disabled = true;
+  try {
+    if (!session) await bereit;
+    const iKein = meta.classes.findIndex((c) => c.key === "kein_hautbild");
+    for (const [n, f] of dateien.entries()) {
+      meldung.textContent = `Foto ${n + 1} von ${dateien.length} wird eingelernt …`;
+      try {
+        const bmp = await dekodiere(f);
+        const { probs, merkmale } = await rechne(bmp);
+        const bild = await lernen.kleinesBild(bmp);
+        bmp.close?.();
+        if (krebsAnteil(probs) >= warnung.schwelle_gelb) { verdacht++; continue; }
+        if (iKein >= 0 && probs[iKein] >= 0.5) { keinBild++; continue; }
+        const b = gesundBefund(merkmale, bild);
+        await lernen.speichere(b);
+        befunde.push(b);
+        gelernt++;
+      } catch (e) {
+        console.warn("Einlernen:", e);
+        kaputt++;
+      }
+    }
+  } finally {
+    $("einlernen-knopf").disabled = false;
+  }
+  zeigeBefunde();
+  meldung.textContent = `✓ ${gelernt} ${gelernt === 1 ? "Foto" : "Fotos"} als gesunde Haut eingelernt.` +
+    (verdacht ? ` ${verdacht} nicht übernommen, weil das Modell dort Hautkrebs nicht sicher ausschließt – diese Stelle bitte einzeln prüfen und im Zweifel einem Arzt zeigen.` : "") +
+    (keinBild ? ` ${keinBild} nicht übernommen (keine Haut erkannt).` : "") +
+    (kaputt ? ` ${kaputt} konnten nicht gelesen werden.` : "");
 }
 
 function zeigeBefunde() {
@@ -623,6 +694,13 @@ $("befund-auf").addEventListener("click", () => {
   $("befund-notiz").value = "";
   $("befund-arzt").checked = false;
   befundFormular(true);
+});
+$("gesund-knopf").addEventListener("click", merkeGesund);
+$("einlernen-knopf").addEventListener("click", () => $("einlernen").click());
+$("einlernen").addEventListener("change", (ev) => {
+  const dateien = [...(ev.target.files || [])];
+  ev.target.value = "";
+  if (dateien.length) lerneGesundeHaut(dateien);
 });
 $("befund-abbruch").addEventListener("click", () => befundFormular(false));
 $("befund-form").addEventListener("submit", speichereBefund);

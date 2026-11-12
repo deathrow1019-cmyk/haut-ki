@@ -70,6 +70,12 @@
 
       <button type="button" id="weiteres-foto" class="btn">➕ Weiteres Foto derselben Stelle</button>
 
+      <div class="befund" id="gesund-box" hidden>
+        <button type="button" id="gesund-knopf" class="btn">✅ Das ist gesunde Haut – merken</button>
+        <p class="hint">Nur tippen, wenn die Stelle wirklich unauffällig ist. Die App lernt daraus und erkennt ähnliche Fotos danach richtig.</p>
+      </div>
+      <p id="gesund-ok" class="ok" hidden></p>
+
       <div class="befund">
         <button type="button" id="befund-auf" class="btn">🩺 Arzt-Befund zu diesem Foto eintragen</button>
         <form id="befund-form" hidden>
@@ -114,9 +120,14 @@
 
     <details class="card">
       <summary>🧠 Dazugelernt <span id="gelernt-zahl"></span></summary>
-      <p class="hint">Arzt-Befunde, die du eingetragen hast. Sie bleiben nur auf diesem iPhone und fließen sofort in
+      <p class="hint">Arzt-Befunde und als gesund gemerkte Fotos. Sie bleiben nur auf diesem iPhone und fließen sofort in
         die Ergebnisse ähnlicher Fotos ein. Eine Hautkrebs-Warnung können sie nie abschwächen.</p>
-      <p id="gelernt-leer" class="hint">Noch keine Befunde. Nach einer Analyse: „Arzt-Befund eintragen“.</p>
+      <button type="button" id="einlernen-knopf" class="btn breit">🖐️ Meine gesunde Haut einlernen</button>
+      <input id="einlernen" type="file" accept="image/*" multiple hidden>
+      <p class="hint">Einmal 10–15 Fotos von unauffälliger Haut auswählen (Arm, Bein, Bauch, Gesicht, Hand – ohne Flecken,
+        Muttermale oder Ausschlag). Danach hält die App deine gesunde Haut nicht mehr für eine Krankheit.</p>
+      <p id="einlernen-meldung" class="ok" hidden></p>
+      <p id="gelernt-leer" class="hint">Noch nichts gelernt. Nach einer Analyse: „Das ist gesunde Haut“ oder „Arzt-Befund eintragen“.</p>
       <ul id="gelernt-liste"></ul>
       <div class="actions" id="gelernt-aktionen" hidden>
         <button type="button" id="export" class="btn">Für das nächste Training exportieren</button>
