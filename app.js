@@ -10,6 +10,8 @@ ort.env.wasm.numThreads = 1;
 
 const MODEL_URL = "modell/haut-ki.onnx";
 const UNSICHER = 0.35;     // Spitzenreiter darunter: Ergebnis gilt als unsicher
+const UNEINIG_TEXT = "🔴 <strong>Die Fotos dieser Stelle widersprechen sich:</strong> auf mindestens einem erscheint die Hautkrebs-Warnung, auf anderen nicht. " +
+  "Die Warnung wird nicht durch die unauffälligen Fotos aufgehoben – bei Handfläche, Fußsohle oder wechselnden Ergebnissen bitte bald einem Hautarzt zeigen (am besten mit Dermatoskop).";
 const FAELLIG_TAGE = 28;   // Verlauf: nach so vielen Tagen an ein neues Vergleichsfoto erinnern
 const KLAR = 0.5;          // harmlose Krankheit darunter: „Kein klarer Befund“ statt Krankheitsname
 const GESUND_MIT = 0.15;   // … oder wenn „gesunde Haut“ mindestens so wahrscheinlich ist
@@ -350,6 +352,12 @@ function zeigeErgebnis(modellProbs, merkmale) {
     (grauzone ? ` Hautkrebs ist nicht sicher ausgeschlossen (zusammen <strong>${prozent(krebs)}</strong>) – bitte beobachten und im Zweifel zeigen.` : "") +
     // Unklares Ergebnis beim ganzen Foto: oft ist die Stelle im Bild nur zu klein
     ((unklar || top.p < UNSICHER) && !keinBild && !original ? " <strong>Tipp:</strong> oben im Foto auf die Stelle tippen – dann wird nur sie ausgewertet." : "");
+  // Gleiche Stelle schon im Verlauf und frühere Fotos widersprechen diesem? Warnung geht vor.
+  const bekannt = letzte && verlauf.passendeStelle(merkmale, eintraege, meta.model_version);
+  if (bekannt) {
+    const fr = eintraege.filter((e) => e.stelle === bekannt);
+    if (verlauf.uneinig([...fr, { datum: new Date().toISOString(), krebs }], warnung.schwelle_rot)) $("hinweis").innerHTML += `<br><br>${UNEINIG_TEXT}`;
+  }
   zeige("unsicher", top.p < UNSICHER);
   const info = !keinBild && !gesund ? WISSEN[top.key] : null;
   zeige("info", !!info);
@@ -721,6 +729,12 @@ function zeigeVerlauf() {
       const p = document.createElement("p");
       p.className = "hint";
       p.textContent = `📅 Letztes Foto vor ${Math.round(tageSeit(fotos) / 7)} Wochen – Zeit für ein neues Vergleichsfoto.`;
+      box.append(p);
+    }
+    if (verlauf.uneinig(fotos, warnung.schwelle_rot)) {
+      const p = document.createElement("p");
+      p.className = "warn";
+      p.innerHTML = UNEINIG_TEXT;
       box.append(p);
     }
     const art = verlauf.veraenderung(fotos, warnung.schwelle_rot);

@@ -65,6 +65,13 @@ export function veraenderung(fotos, schwelleRot) {
   return null;
 }
 
+/** Sind sich die Fotos derselben Stelle (der letzten 30 Tage) uneinig? Mindestens eines warnt (rot), mindestens eines nicht.
+ *  Dann gilt die Warnung: ein unauffälliges Foto hebt ein warnendes nicht auf. */
+export function uneinig(fotos, schwelleRot, jetzt = Date.now()) {
+  const neu = fotos.filter((f) => jetzt - +new Date(f.datum) <= 30 * 864e5);
+  return neu.length >= 2 && neu.some((f) => f.krebs >= schwelleRot) && neu.some((f) => f.krebs < schwelleRot);
+}
+
 const alsDataUrl = (blob) => new Promise((r) => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(blob); });
 
 function ausDataUrl(url) {
