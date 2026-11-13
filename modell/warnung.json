@@ -1,26 +1,26 @@
 {
- "modell": "2ccc24439d8c",
- "schwelle_rot": 0.2,
+ "modell": "7330f0721503",
+ "schwelle_rot": 0.25,
  "schwelle_gelb": 0.1,
  "test": {
   "n_krebs": 3302,
   "n_gutartig": 5742,
   "rot": {
-   "erkannt": 0.947,
-   "fehlalarm": 0.202
+   "erkannt": 0.9373,
+   "fehlalarm": 0.147
   },
   "gelb": {
-   "erkannt": 0.9761,
-   "fehlalarm": 0.294
+   "erkannt": 0.9755,
+   "fehlalarm": 0.2473
   },
   "handy": {
    "rot": {
-    "erkannt": 0.954,
-    "fehlalarm": 0.1844
+    "erkannt": 0.9468,
+    "fehlalarm": 0.1681
    },
    "gelb": {
-    "erkannt": 0.9784,
-    "fehlalarm": 0.2472
+    "erkannt": 0.9755,
+    "fehlalarm": 0.2309
    }
   }
  }

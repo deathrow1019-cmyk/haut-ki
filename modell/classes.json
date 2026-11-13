@@ -1,5 +1,5 @@
 {
-  "model_name": "convnext_tiny.fb_in22k_ft_in1k",
+  "model_name": "convnext_small.fb_in22k_ft_in1k",
   "img_size": 256,
   "mean": [
     0.485,
@@ -175,6 +175,30 @@
       "risiko": "niedrig"
     },
     {
+      "key": "warzen",
+      "name": "Warzen (gewöhnliche Warzen, Dornwarzen)",
+      "gruppe": "Hautkrankheiten",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "feigwarzen",
+      "name": "Feigwarzen (Genitalwarzen)",
+      "gruppe": "Intimbereich & Hautfalten",
+      "risiko": "mittel"
+    },
+    {
+      "key": "candida",
+      "name": "Hefepilz / Wundsein in Hautfalten (Candida, Intertrigo)",
+      "gruppe": "Intimbereich & Hautfalten",
+      "risiko": "niedrig"
+    },
+    {
+      "key": "lichen_sclerosus",
+      "name": "Lichen sclerosus",
+      "gruppe": "Intimbereich & Hautfalten",
+      "risiko": "mittel"
+    },
+    {
       "key": "lupus",
       "name": "Hautlupus (Lupus erythematodes)",
       "gruppe": "Hautkrankheiten",
@@ -193,5 +217,5 @@
       "risiko": "niedrig"
     }
   ],
-  "model_version": "2ccc24439d8c"
+  "model_version": "7330f0721503"
 }
